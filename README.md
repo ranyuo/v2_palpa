@@ -70,3 +70,20 @@ El empaquetador incluye solo archivos versionados necesarios para la instalació
 Para aplicar las correcciones del QA a una instalación existente, consulta [ACTUALIZACION-QA-HOSTINGER.md](ACTUALIZACION-QA-HOSTINGER.md); para las mejoras posteriores al plan de pruebas y el cambio de nombres internos, [ACTUALIZACION-MEJORAS.md](ACTUALIZACION-MEJORAS.md). El resultado verificado y sus límites están en [QA-CORRECCIONES-INTRANET.md](QA-CORRECCIONES-INTRANET.md).
 
 La limpieza de archivos y las mediciones de tamaño se documentan en [LIMPIEZA-REPOSITORIO.md](LIMPIEZA-REPOSITORIO.md).
+
+## Configuración académica y documentos
+
+La configuración compartida y los tres módulos documentales se describen en
+[OPERACION-INTRANET.md](OPERACION-INTRANET.md#configuración-académica-compartida-y-documentos).
+Además de la suite base, las regresiones de esta funcionalidad se ejecutan sobre la misma
+base desechable, en este orden:
+
+```sh
+PORTAL_CONFIG_FILE=/ruta/config.test.php php tests/intranet.php
+PORTAL_CONFIG_FILE=/ruta/config.test.php php tests/academic-documents.php
+PORTAL_BASE_URL=http://127.0.0.1:8084 node tests/browser-academic-documents.cjs
+```
+
+El segundo comando conserva los datos de la suite base y agrega sus propios documentos QA.
+No debe ejecutarse sobre una instalación real. Las unidades heredadas permanecen pendientes
+de asociación a módulos hasta que el personal complete esa configuración.

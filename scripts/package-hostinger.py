@@ -35,7 +35,7 @@ for name in filter(None, tracked):
     if any(part in {'backups', '.backups', '.results', '.git'} for part in path.parts):
         raise SystemExit(f'Ruta privada inesperada: {name}')
     files.append(name)
-required = {'public_html/index.php', 'public_html/intranet.js', 'public_html/intranet.css',
+required = {'public_html/academic-documents.js', 'portal-private/AcademicDocuments.php', 'public_html/index.php', 'public_html/intranet.js', 'public_html/intranet.css',
             'public_html/.htaccess', 'portal-private/IntranetScope.php', 'portal-private/.htaccess',
             'portal-private/config.example.php', 'portal-private/schema.sql', 'portal-private/data/portal.json',
             'public_html/assets/vendor/bootstrap/bootstrap-grid.min.css'}

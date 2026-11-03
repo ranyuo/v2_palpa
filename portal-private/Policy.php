@@ -7,7 +7,7 @@ final class PortalPolicy
     public const TOP = [
         'noticias'=>['imagen'],'categoriasNoticia'=>['imagen'],'eventos'=>['imagen'],
         'paginas'=>['imagen'],'reconocimientos'=>['imagen'],'slides'=>['imagen'],'enlaces'=>['imagen'],'locales'=>['imagen'],
-        'personas'=>['secretaria','docente'],'jerarquica'=>['secretaria'],'programas'=>['coordinador'],
+        'personas'=>['secretaria','docente'],'jerarquica'=>['secretaria'],'programas'=>['coordinador','secretaria'],
         'egresados'=>['secretaria','coordinador'],'admisiones'=>['secretaria'],'matriculas'=>['secretaria'],
         'becarios'=>['secretaria'],'becasPeriodos'=>['secretaria'],'tiposBeca'=>['secretaria'],
         'estadisticas'=>['secretaria','directivo'],'certificados'=>['secretaria'],
@@ -42,11 +42,13 @@ final class PortalPolicy
         foreach(self::$roleOverrides as $key=>$role)if($key!=='admin'&&isset($base['roles'][$key]))$base['roles'][$key]=array_replace($base['roles'][$key],$role);
         $base['roles']=IntranetScope::roles($base['roles']);
         foreach($base['specs'] as &$spec)if($spec['collection']==='programas')foreach($spec['fields'] as &$field)if(in_array($field['name'],['resumen','perfil','campoItems','imagen','horario','turno'],true)){$field['required']=false;$field['publishRequired']=false;}
+        foreach($base['specs'] as &$spec)if($spec['collection']==='certificados')foreach($spec['fields'] as &$field)if($field['name']==='programaId'){$field['required']=false;$field['publishRequired']=false;}
         unset($spec,$field);
         return $base;
     }
     public static function collectionModule(string $key,array $user=[]): string
     {
+        if($key==='programas')return 'ix-config';
         if($key==='personas'&&self::role($user)==='docente')return 'cvdocente';
         foreach(self::defaults()['specs'] as $spec)if($spec['collection']===$key)return $spec['module'];
         return ['slides'=>'portada','enlaces'=>'enlaces','categoriasNoticia'=>'noticias','tiposDocumento'=>'documentos','tupaDocs'=>'tupa','tiposBeca'=>'becas','becasPeriodos'=>'becas','becarios'=>'becas','personas'=>'docentes'][$key]??$key;
@@ -85,7 +87,7 @@ final class PortalPolicy
     private static function academicScope(string $key,array $row,array $data,array $user): bool
     {
         $role=self::role($user);$est=self::binding($user,'est');$emp=self::binding($user,'emp');$doc=self::binding($user,'doc');
-        if($role==='coordinador' && in_array($key,['estudiantes','sesiones'],true)) return ($row['prog']??null)===self::ownProgram($data,$user);
+        if($role==='coordinador' && in_array($key,['programas','uds','modulos','ambientes','estudiantes','sesiones'],true)) return ($key==='programas'?($row['id']??null):($row['prog']??null))===self::ownProgram($data,$user);
         if(in_array($role,['estudiante','egresado'],true)) {
             if($key==='estudiantes')return $est!==null&&(int)($row['id']??0)===$est;
             if(in_array($key,['certs','notas','titulos','perfilesLab','postulaciones'],true))return $est!==null&&(int)($row['est']??0)===$est;
@@ -234,6 +236,10 @@ final class PortalPolicy
             $ownDocument=in_array($role,['estudiante','egresado'],true)&&$key==='docs';
             $company=$role==='empresa'&&in_array($key,['empresas','ofertas','postulaciones'],true);
             if(!$module||(!$ownProfile&&!$docProfile&&!$company&&!$ownContact&&!$ownDocument&&self::level($full,$user,$module)<2))throw new PortalError(403,'Tu rol no puede modificar el módulo académico '.$key.'.');
+            if($key==='cfg'){
+                if($role==='coordinador')throw new PortalError(403,'Los parámetros generales requieren Secretaría o Administración.');
+                foreach($value as $setting=>$v)if(!self::equal($base['cfg'][$setting]??null,$v)){if(in_array($setting,['nombre','siglas','director','direccion','web'],true))throw new PortalError(403,'La identidad se configura en la intranet.');$out['cfg'][$setting]=$v;}continue;
+            }
             if($key==='publicados'){
                 foreach(array_unique([...array_keys($base[$key]??[]),...array_keys($value)]) as $group){
                     if(self::equal($value[$group]??null,$base[$key][$group]??null))continue;

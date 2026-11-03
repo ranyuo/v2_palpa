@@ -14,6 +14,11 @@ final class PortalContent
 
     public static function normalize(array $data): array
     {
+        if(($data['__v']??0)<14){
+            $data['academico']['perms']['acad']['config']=2;
+            $data['academico']['perms']['dir']['config']=1;
+            $data['__v']=14;
+        }
         foreach ($data['academico']['areas'] ?? [] as $i => $area) {
             $data['academico']['areas'][$i]['nivel'] = self::areaLevel($area);
         }
@@ -30,6 +35,15 @@ final class PortalContent
             if ($fix && ($row['denominacion'] ?? '') === $fix[0]) {
                 $data['tupa'][$i]['denominacion'] = $fix[1];
             }
+        }
+        if(isset($data['academico'], $data['certificados'])&&class_exists(AcademicDocuments::class)){
+            AcademicDocuments::sync($data);
+            foreach(['certs'=>'cert','titulos'=>'tit'] as $key=>$prefix)foreach($data['academico'][$key] as &$row){
+                $doc=PortalPolicy::find($data['certificados'],'ref','ix:'.$prefix.':'.$row['id']);if(!$doc)continue;
+                $row+=['institucion'=>$doc['institucion']??'','estadoDoc'=>$doc['estado']??'Válido'];
+                if($key==='certs')$row+=['horasDoc'=>$doc['horas']??'','tipoHoras'=>$doc['tipoHoras']??'Académicas'];
+                else $row+=['denominacion'=>$doc['tipo'],'nivel'=>$doc['nivel']??'Superior tecnológico','pais'=>$doc['pais']??'Perú','region'=>$doc['region']??'Ica'];
+            }unset($row);
         }
         return $data;
     }

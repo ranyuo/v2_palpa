@@ -2,7 +2,7 @@
 'use strict';
 const INTRANET_WEBSITE='https://www.istpalpa.edu.pe/';
 const INTRANET_MODULES=new Set(portalBootstrap.scope.modules);
-MODULES.dashboard='Mi panel';MODULES.docentes='Personal docente';MODULES.cvdocente='Portafolio docente';MODULES.config='Configuración de la intranet';MODULES['ix-certificados']='Constancias y certificados';
+MODULES.dashboard='Mi panel';MODULES.docentes='Personal docente';MODULES.cvdocente='Portafolio docente';MODULES.config='Configuración de la intranet';MODULES['ix-certificados']='Certificación modular';
 NAV_GROUPS.splice(0,NAV_GROUPS.length,
  ['Inicio',[['dashboard','home']]],
  ['Gestión académica',[['ix-horarios','calendar'],['ix-certificados','award'],['ix-titulos','grad']]],

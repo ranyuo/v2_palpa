@@ -4,6 +4,7 @@ final class PortalAcademic
 {
     public static function validate(array $old,array &$new): void
     {
+        if(!preg_match('/^20[0-9]{2}-(?:I|II)$/D',(string)($new['academico']['cfg']['periodo']??'')))throw new PortalError(422,'El periodo académico debe tener el formato 2026-II.');
         $contracts=json_decode(file_get_contents(__DIR__.'/contracts/academic.json'),true,flags:JSON_THROW_ON_ERROR);$a=&$new['academico'];$o=$old['academico'];
         foreach($contracts as $key=>$spec){if($key==='usuarios')continue;
             if(!is_array($a[$key]??null)||!array_is_list($a[$key]))throw new PortalError(422,'Catálogo académico no válido: '.$key.'.');
@@ -21,6 +22,12 @@ final class PortalAcademic
                 }
                 $refs=match($key){'uds','ambientes','modulos','estudiantes'=>['prog'=>'programas'],'certs'=>['est'=>'estudiantes','mod'=>'modulos'],'notas','titulos'=>['est'=>'estudiantes'],'ofertas'=>['emp'=>'empresas','prog'=>'programas'],default=>[]};
                 foreach($refs as $field=>$target)if(!empty($row[$field])&&!PortalPolicy::find($a[$target],'id',$row[$field]))throw new PortalError(422,'La referencia académica '.$target.' no existe.');
+                if($key==='uds'&&!empty($row['mod'])){
+                    $module=PortalPolicy::find($a['modulos'],'id',$row['mod']);
+                    if(!$module||$module['prog']!==$row['prog'])throw new PortalError(422,'La unidad didáctica y su módulo deben pertenecer al mismo programa.');
+                }
+                if(isset($row['tipoHoras'])&&!in_array($row['tipoHoras'],['','Académicas','Lectivas'],true))throw new PortalError(422,'Tipo de horas no válido.');
+                if(isset($row['estadoDoc'])&&!in_array($row['estadoDoc'],['Válido','Anulado'],true))throw new PortalError(422,'Estado documental no válido.');
                 if($key==='empresas'){
                     $ruc=(string)($row['ruc']??'');$weights=[5,4,3,2,7,6,5,4,3,2];$sum=0;if(!preg_match('/^[0-9]{11}$/',$ruc))throw new PortalError(422,'El RUC debe tener once dígitos.');foreach($weights as $i=>$weight)$sum+=(int)$ruc[$i]*$weight;$digit=11-$sum%11;$digit=$digit===10?0:($digit===11?1:$digit);if((int)$ruc[10]!==$digit)throw new PortalError(422,'El dígito verificador del RUC no coincide.');
                 }
@@ -33,6 +40,7 @@ final class PortalAcademic
                 if($key==='tramites'&&!PortalPolicy::find($a['areas'],'cod',$row['area']))throw new PortalError(422,'El área responsable del trámite no existe.');
             }unset($row);
         }
+        foreach($a['uds'] as $unit)if(!empty($unit['mod'])){$m=PortalPolicy::find($a['modulos'],'id',$unit['mod']);if(!$m||$m['prog']!==$unit['prog'])throw new PortalError(422,'El módulo tiene unidades relacionadas de otro programa o fue eliminado.');}
         foreach($o['areas'] as $r)if(!PortalPolicy::find($a['areas'],'id',$r['id'])){
             if(PortalPolicy::find($a['tramites'],'area',$r['cod']))throw new PortalError(422,'El área tiene trámites relacionados.');
             foreach($new['expedientes'] as $exp)if(in_array($r['cod'],[$exp['area']??'',$exp['areaDestino']??''],true))throw new PortalError(422,'El área tiene expedientes relacionados.');

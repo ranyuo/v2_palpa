@@ -1,5 +1,5 @@
 {
-  "__v": 13,
+  "__v": 14,
   "config": {
     "inst": {
       "nombre": "Instituto de Educación Superior Público “Palpa”",
@@ -6054,7 +6054,7 @@
         "docentes": 1,
         "usuarios": 0,
         "bitacora": 1,
-        "config": 0,
+        "config": 1,
         "arquitectura": 1,
         "alumnos": 1
       },
@@ -6069,7 +6069,7 @@
         "docentes": 1,
         "usuarios": 0,
         "bitacora": 0,
-        "config": 0,
+        "config": 2,
         "arquitectura": 1,
         "alumnos": 2
       },

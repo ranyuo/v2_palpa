@@ -1,0 +1,442 @@
+{
+  "institution": "Instituto de Educación Superior Público “Palpa”",
+  "base_url": "https://www.istpalpa.edu.pe/",
+  "consulted_at": "2026-10-29",
+  "pages": [
+    {
+      "url": "https://www.istpalpa.edu.pe/admision.html",
+      "sha256": "1f85d5dcf128c87f5d931dfda95aa8c92d088fb7f78f50331821f48cf458ca93"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/agropecuaria.html",
+      "sha256": "b96425dee275809e801a62b198cb3cc1fddbf9e6a6062846c4aabb633056c4d9"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/arquitectura.html",
+      "sha256": "7cea94768f239137aee3287a8573efe54ec1f2c75214281b3da0f8d5d5ef410b"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/becas.html",
+      "sha256": "e644e248e4c3fd1dc207680bae3f4b051cafb6b79ac399e1d8f3670efbe307db"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/contacto.html",
+      "sha256": "cf9b04dffafd28d16ea860c646b599d9ebbdeaa4134afe685f7877568df140b8"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/docentes.html",
+      "sha256": "d19a7fb6b72f71a56752d1e34c030d27cfee8ae309def30ec5829e3931188040"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/documentos.html",
+      "sha256": "b1d627bdc78776183b3b2b076f8eac46183114cc5b886fccb6bc60ff02f3edfb"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/enfermeria.html",
+      "sha256": "164348624ed3cc66b04d8ccfe939a64785c0d4a901714054dd16d733715af5cc"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/estadistica.html",
+      "sha256": "3041f4c5398ab9ca3300142cde288a205d129f65bc28c1220f9c2f22104513b2"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/index.html",
+      "sha256": "02e72b18c81f4829899bb8fa4cd79ff689ae2342ba85aee9102f3f18cd02cbb0"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/inversiones.html",
+      "sha256": "82f45f67373ff3298c1576fc9bb208f6ec03b4fe6e86bbd9e69defc824953d53"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/jerarquicos.html",
+      "sha256": "81fc46dc31dcab643526ff235c5035a8ef3b9eb55b224f8a960ae9f9d45476cb"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/licenciamiento.html",
+      "sha256": "13fdb995c297c0219d0975d2a77e7df84bb85f0fbaee39cdd9be7171f454dd87"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/matricula.html",
+      "sha256": "6b794d59506693c1cf5729823834dc744e0193448f781ef0679da200a5fed85d"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/mecatronica.html",
+      "sha256": "81c7fbb59f7f619c9f844c895e99be10342b432e03cb04db3ab809f2dac5f5b2"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/mivi.html",
+      "sha256": "b399123a8d1bf38d7bf0a5c6e8571fed2c31a51ff503f0f76efdad6f07d35b26"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/organizacion.html",
+      "sha256": "dfaaaecf9a279c0abc88d10cbe0e8f26bfed52b6d097163a65bbed30ea9cc63e"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/presentacion.html",
+      "sha256": "5ab25eed46f1e1471595e4b35399c03aac7d9b734b093f744dd8cd3fe9a3a8c6"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/resena.html",
+      "sha256": "f6adb1cf65f3622f448536df4827d624887e7f1c93ca03f758aa2c71cff8a6d3"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/tupa.html",
+      "sha256": "fa0f4b7b748dcce75acfbbed12105a30534805c4fcc467cc46cf9a9c583597de"
+    },
+    {
+      "url": "https://www.istpalpa.edu.pe/turismo.html",
+      "sha256": "9e61404dcbb9baec5b3f55806abbfd10bb65eb329233669ff89e3c0d84c8af63"
+    }
+  ],
+  "assets": [
+    {
+      "source": "https://www.istpalpa.edu.pe/images/footer-logo.png",
+      "url": "/assets/palpa/footer-logo-cb16952ab8.png",
+      "sha256": "85d177d1c7b961e29d6bd8f43bf71c1edec3a0c326400d4bb47cffbca3b96647",
+      "size": 22590,
+      "type": "image/png"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/organigrama-vista.png?v=21",
+      "url": "/assets/palpa/organigrama-vista-af7bf46865.png",
+      "sha256": "140a69ae31b37aa62141fa40ecc45ff76381ac8f2a5d26676eb1ee138d0aeae2",
+      "size": 215379,
+      "type": "image/png"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/single-img-five.png",
+      "url": "/assets/palpa/single-img-five-b9e64c8e93.png",
+      "sha256": "48602e4bf846d264b323939d1cee6e298cc9d496b0369acb96bffbef1bc53132",
+      "size": 522238,
+      "type": "image/png"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/single-img-two.jpg",
+      "url": "/assets/palpa/single-img-two-21b12fc39c.jpg",
+      "sha256": "ea68a4876e36b70f59aa36bcc4eb31930fb237e20af38abc58cfbb14194118a5",
+      "size": 253506,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/slides/slider-mainbg-011.jpg",
+      "url": "/assets/palpa/slider-mainbg-011-9fa937f39e.jpg",
+      "sha256": "b87b97693afaa6d755d8745e7bde6b3fc0065bfd1a0977e9607099e0885022ba",
+      "size": 781842,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/slides/slider-mainbg-012.jpg",
+      "url": "/assets/palpa/slider-mainbg-012-f8a5073d2d.jpg",
+      "sha256": "a0f04a293e8d928fc0ebeb1ac2aaf189493ada7c7b33219a22546912ececd088",
+      "size": 1679187,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/tab-image-cinco.png",
+      "url": "/assets/palpa/tab-image-cinco-7c732329b4.png",
+      "sha256": "a48e154ae8690ebb1b21fbecf530b8bdae76551dd60ac052339a7bf59219c84a",
+      "size": 486753,
+      "type": "image/png"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/tab-image-cuatro.png",
+      "url": "/assets/palpa/tab-image-cuatro-5375642571.png",
+      "sha256": "3248902d14c3cfc2d1880b1b38ec16b3aac3fcc12c01219fb79c551d489c3f6c",
+      "size": 412437,
+      "type": "image/png"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/tab-image-dos.png",
+      "url": "/assets/palpa/tab-image-dos-afdc88be95.png",
+      "sha256": "77bbdff18aa5f81e17ae6fa2ae81d6a2d6565dcf9fc05f62d9e6161de9ce2a9c",
+      "size": 334994,
+      "type": "image/png"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/tab-image-one.png",
+      "url": "/assets/palpa/tab-image-one-69dfa410ad.png",
+      "sha256": "6cbfe2b0867587a3ead4022b6e4969ce3d0095941c08b2f5a3656b27c6026bbe",
+      "size": 404125,
+      "type": "image/png"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/tab-image-tres.png",
+      "url": "/assets/palpa/tab-image-tres-fb8a4cd973.png",
+      "sha256": "83cb94b622ed488f515c84de89a8ba76a3783ec580282d3b6277907b34feeed9",
+      "size": 479977,
+      "type": "image/png"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/daniel.jpg",
+      "url": "/assets/palpa/daniel-eb3679876a.jpg",
+      "sha256": "768dacea5c757f35ecef2cb63417b30e002a84032091428dbff385f014e337b2",
+      "size": 450458,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/donayre.jpg",
+      "url": "/assets/palpa/donayre-511e6695b1.jpg",
+      "sha256": "20db488caf79003b06acfe9985a503c388e077bb844fba5a99c7afa5cf3ea68c",
+      "size": 443341,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/elva.jpg",
+      "url": "/assets/palpa/elva-e02f87f22b.jpg",
+      "sha256": "c5f6038b74c327a44d26d87b08b3c0bcc2dc8d49540063bd7a1074e3fb711821",
+      "size": 433452,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-abel.jpg",
+      "url": "/assets/palpa/team-abel-56be8f620c.jpg",
+      "sha256": "153c72e5f31025ef93cd220f23ac9191e2d7d9749014dbf82492b464adad0434",
+      "size": 197530,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-felipa.jpg",
+      "url": "/assets/palpa/team-felipa-62e86123bc.jpg",
+      "sha256": "d12909f879668ea105f2c0508ad3259daf69bedd5f02d55098f946627c4159a3",
+      "size": 272522,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-gladys.jpg",
+      "url": "/assets/palpa/team-gladys-6667f92ad7.jpg",
+      "sha256": "94fc768f1d6667d02330f542b73cb9ceb15e8d9b1015c6c87be65592ab050a65",
+      "size": 168936,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-hombre.jpg",
+      "url": "/assets/palpa/team-hombre-fd57bffb9a.jpg",
+      "sha256": "6ed13c69385cb7c1b7cc6a34c5ceac69bcb7e83291a2f93b5cfbdb7154e40f6c",
+      "size": 44732,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-img02.jpg",
+      "url": "/assets/palpa/team-img02-af3d78d4d1.jpg",
+      "sha256": "6f30997155b6de92f93a342dd7476aac05bdabf2975352089c7c0bdc21a57924",
+      "size": 193541,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-img03.jpg",
+      "url": "/assets/palpa/team-img03-756cab5a5f.jpg",
+      "sha256": "23c7501771ecc8a5a8803504c14f115424967016fc382738907b71991672d826",
+      "size": 212284,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-img05.jpg",
+      "url": "/assets/palpa/team-img05-21ed74567d.jpg",
+      "sha256": "6f82b2ec1f8647780bc35c8a67f5e7f420fcb5f333f34ad376b7e0c21d6f1862",
+      "size": 203123,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-img06.jpg",
+      "url": "/assets/palpa/team-img06-e919b537df.jpg",
+      "sha256": "36fb520602897f367fe3e620c3d787a28310a2b6a13c17f08f31a09dbc57c9e8",
+      "size": 199255,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-img07.jpg",
+      "url": "/assets/palpa/team-img07-c786ab2e95.jpg",
+      "sha256": "01f73766cd12ce5c812ac0b457e77d724a2a1156f6e8a6ca48f7839f6dcf4f2a",
+      "size": 212566,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-img08.jpg",
+      "url": "/assets/palpa/team-img08-21e6fc15b5.jpg",
+      "sha256": "06273ce2aa3a4de6d79373ae149bc9f8ead088e55bc12dc445e247e1b64e97a2",
+      "size": 271653,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-img10.jpg",
+      "url": "/assets/palpa/team-img10-37fdc93f7c.jpg",
+      "sha256": "2b6830f130a72519202daed76723e0811bf95f2bbd0979d059853426dfb2ea9b",
+      "size": 191941,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-img11.jpg",
+      "url": "/assets/palpa/team-img11-f0c9413721.jpg",
+      "sha256": "2183ca93c16d6f429af9036642b312d740157b6e29a5a16891d47a016cc6e106",
+      "size": 233256,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-iris.jpg",
+      "url": "/assets/palpa/team-iris-bec52c5e48.jpg",
+      "sha256": "8c1693d4eca089015bdbc617ebfd188fdc7291cfe3ec89e0f225d21343fc5d8a",
+      "size": 210357,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-jc.jpg",
+      "url": "/assets/palpa/team-jc-848bbdf421.jpg",
+      "sha256": "afc92f7486aa736baff57a7054aac5798b02c19b9e706a075cb00f39e4c3178d",
+      "size": 150852,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-karina.jpg",
+      "url": "/assets/palpa/team-karina-ebeee320a2.jpg",
+      "sha256": "b0268de5c8c47dc1ba2599c50230dcc6a6c45359443332db217e4ae5a05113a3",
+      "size": 185971,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-kike.jpg",
+      "url": "/assets/palpa/team-kike-83cea33ed0.jpg",
+      "sha256": "d6121596f3813d659cc3b6bf489ce3e32f92f64c6f9c70c57353d65bd2993783",
+      "size": 204428,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-meza.jpg",
+      "url": "/assets/palpa/team-meza-005d3e751f.jpg",
+      "sha256": "a624772686d1f06a13f99df5aaa2da20a62143771442c17c0198c1b4929e38c4",
+      "size": 203258,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-miguel.jpg",
+      "url": "/assets/palpa/team-miguel-03d2ff8259.jpg",
+      "sha256": "bd5204f991e5040e32c0e25dcf4b534debf6bf08aae134c4fc657ca6318e4192",
+      "size": 205390,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-mujer.jpg",
+      "url": "/assets/palpa/team-mujer-8e857321da.jpg",
+      "sha256": "300737805e5284c439b06b951ac1159a7ca6a587c8899e8e75bc59716558bdd3",
+      "size": 58447,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-paty.jpg",
+      "url": "/assets/palpa/team-paty-bf49f6a6c3.jpg",
+      "sha256": "c98025111e0763c72ca3d9e37cebf518f2002b3a33e58dd7b47cc6abc552bcb4",
+      "size": 190494,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-rodriguez.jpg",
+      "url": "/assets/palpa/team-rodriguez-bb5d90b158.jpg",
+      "sha256": "e2eed6096e16e2a7902c0650822d7d26ac2c945cd6b244ebfee35f8c42657464",
+      "size": 186769,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-socorro.jpg",
+      "url": "/assets/palpa/team-socorro-2958b3e3c9.jpg",
+      "sha256": "5188b08caf5ac9c7327413849a52a2f929ce7a9269a1d80891c027b7678c49ea",
+      "size": 226326,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/images/team-member/team-yulmer.jpg",
+      "url": "/assets/palpa/team-yulmer-517da05d38.jpg",
+      "sha256": "d36ea4244f2e7d1c35aae067848d0c65b205f26396c24483912e174dd8bf1e63",
+      "size": 204342,
+      "type": "image/jpeg"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/pdf/admision2026.pdf",
+      "url": "/assets/palpa/admision2026-d1a0349328.pdf",
+      "sha256": "66bcb8d250f05986c83c8421c13f643082ad2f6de35302bcffd5d7660d8aeaa2",
+      "size": 330044,
+      "type": "application/pdf"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/pdf/matricula2.pdf",
+      "url": "/assets/palpa/matricula2-792c016945.pdf",
+      "sha256": "2b81cf3430c613bcb7867bedac703fadc7097c59b52106bba7e12521662016b0",
+      "size": 235154,
+      "type": "application/pdf"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/pdf/mv1peipalpa.pdf",
+      "url": "/assets/palpa/mv1peipalpa-20c88e55ad.pdf",
+      "sha256": "c3e804282f6d0b0272ea63cea1440f0e58b0878c67dd934947b8520b76046452",
+      "size": 605921,
+      "type": "application/pdf"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/pdf/mv2patpalpa.pdf",
+      "url": "/assets/palpa/mv2patpalpa-918d099752.pdf",
+      "sha256": "57daf9f529501a47f94bd7c607e1572a2b9c1b02719ec2af5043cfea4eb0c4e5",
+      "size": 605425,
+      "type": "application/pdf"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/pdf/mv3ripalpa.pdf",
+      "url": "/assets/palpa/mv3ripalpa-6b6b62398d.pdf",
+      "sha256": "946ccc42c8e36c804cbb9bb125b82168ce8dbfd63fe91695e12cec07d74f89ca",
+      "size": 610902,
+      "type": "application/pdf"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/pdf/mv4mpppalpa.pdf",
+      "url": "/assets/palpa/mv4mpppalpa-9188788b84.pdf",
+      "sha256": "1b2684bcc79ea0e5ba6572e1af917f4b0b5fb7c566db23675ff133dbc5cde7fe",
+      "size": 763452,
+      "type": "application/pdf"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/pdf/mv5mpapalpa.pdf",
+      "url": "/assets/palpa/mv5mpapalpa-347a5fac82.pdf",
+      "sha256": "47b4970086f84f4588fa32772d5331211a93cc0d64adde467977fa43a2bfefc8",
+      "size": 847560,
+      "type": "application/pdf"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/pdf/organigrama.pdf",
+      "url": "/assets/palpa/organigrama-7fb9048046.pdf",
+      "sha256": "043a02d189a2a7a1c3d5c55b7f614d3e1ed2e3331e7775f3923be752166d552c",
+      "size": 61021,
+      "type": "application/pdf"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/pdf/pse.pdf",
+      "url": "/assets/palpa/pse-54914b4e37.pdf",
+      "sha256": "922940a9e601dd5f838cf059cb519e04af399dfcd23b0cf235948a503728b9ae",
+      "size": 278792,
+      "type": "application/pdf"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/pdf/rm.pdf",
+      "url": "/assets/palpa/rm-6403c24935.pdf",
+      "sha256": "5a40d2267cd05703a8afba63b422717117d57ce46f591990d2b6a5a7451129ed",
+      "size": 671179,
+      "type": "application/pdf"
+    },
+    {
+      "source": "https://www.istpalpa.edu.pe/pdf/tupa.pdf?v=iespalpa-tupa-2026-v14",
+      "url": "/assets/palpa/tupa-830b39b659.pdf",
+      "sha256": "b5f9875c33a35140844360d0c25fa1c58ae881a67e22017488300da8bf872cb1",
+      "size": 37665,
+      "type": "application/pdf"
+    }
+  ],
+  "errors": [
+    {
+      "source": "https://www.istpalpa.edu.pe/css/skin-color.css",
+      "error": "curl: (22) The requested URL returned error: 404"
+    }
+  ],
+  "notes": [
+    "CV y DNI no importados.",
+    "Los periodos de admisión y matrícula publicados no se anuncian como abiertos.",
+    "La web publica becas 2026 sin indicar semestre.",
+    "El PEI publica 14:30–19:15 y las fichas de programa 14:30–19:30.",
+    "El reglamento de admisión indica 90 minutos en art. 28 y 120 en art. 41."
+  ]
+}

@@ -1,0 +1,16 @@
+/portal-private/config.php
+/portal-private/config.*.php
+!/portal-private/config.example.php
+/portal-private/backups/
+/portal-private/.backups/
+/portal-private/*.lock
+/portal-private/*.log
+/tests/.results/
+
+# Evidencias y paquetes generados: conservar fuera del código fuente.
+/docs/qa/
+/evidencias/
+/entregables/
+# Recursos retirados de otros institutos.
+/public_html/assets/chincha/
+/public_html/assets/nasca/

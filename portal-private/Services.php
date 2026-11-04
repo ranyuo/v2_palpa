@@ -13,6 +13,8 @@ final class PortalServices
         foreach($immutable as $collection=>$fields)foreach($new[$collection] as &$r){$before=PortalPolicy::find($old[$collection],'id',$r['id']??null);if(PortalPolicy::equal($before,$r))continue;
             if(!$before)throw new PortalError(422,'Los nuevos registros de '.$collection.' se reciben mediante su formulario de servidor.');
             foreach($fields as $field)if(!PortalPolicy::equal($before[$field]??null,$r[$field]??null))throw new PortalError(422,'El registro original de '.$collection.' es de solo lectura: '.$field.'.');
+            if(($before['anulado']??false)){foreach(['anulado','estado','area','respuesta'] as $field)if(!PortalPolicy::equal($before[$field]??null,$r[$field]??null))throw new PortalError(422,'El registro está anulado y no admite cambios de estado, derivación ni respuesta.');}
+            if(!empty($r['anulado'])&&!($before['anulado']??false)&&isset($states[$collection])&&in_array('Anulado',$states[$collection],true))$r['estado']='Anulado';
             if(!in_array($r['estado']??'',$states[$collection],true))throw new PortalError(422,'Estado no válido.');
             if((!empty($r['anulado'])&&!($before['anulado']??false))||(!empty($r['deleted'])&&!($before['deleted']??false))){if($user['rol']!=='admin')throw new PortalError(403,'Solo el administrador puede anular o eliminar registros.');if(!empty($r['anulado'])&&strlen(trim($r['motivoAnulacion']??''))<5)throw new PortalError(422,'Registra el motivo de anulación.');$r['anuladoPor']=$user['usuario'];}
             if($collection==='reclamos'&&($r['estado']??'')==='Atendido'&&strlen(trim($r['respuesta']??''))<10)throw new PortalError(422,'Registra una respuesta institucional de al menos diez caracteres.');

@@ -9,10 +9,12 @@ try {
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $app->checkCsrf(is_string($_POST['_csrf'] ?? null) ? $_POST['_csrf'] : '');
         if (($_POST['action'] ?? '') === 'password') {
+            $temporary=!empty($actor['cambioClave']);
             $app->changePassword($_POST);
+            if($temporary){header('Location: /#/admin/dashboard', true, 303); exit;}
             $_SESSION['account_notice'] = 'Contraseña actualizada.';
         } else {
-            $app->createAccount($_POST);
+            $app->createAccount($_POST,true,true);
             $_SESSION['account_notice'] = 'Cuenta creada con su rol y vínculos.';
         }
         header('Location: /accounts.php', true, 303); exit;
@@ -31,6 +33,7 @@ function e(string $value): string { return htmlspecialchars($value, ENT_QUOTES, 
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cuentas | Intranet Palpa</title><link rel="stylesheet" href="/forms.css"></head>
 <body><main><a href="/#/admin/dashboard">← Volver al panel</a><h1>Cuentas de la intranet</h1>
 <?php if ($notice): ?><p class="notice success" role="status"><?= e($notice) ?></p><?php endif ?>
+<?php if (!empty($actor['cambioClave'])): ?><p class="notice" role="alert">Estás usando una contraseña temporal. Cámbiala para continuar usando la intranet.</p><?php endif ?>
 <?php if ($error): ?><p class="notice" role="alert"><?= e($error) ?></p><?php endif ?>
 <?php if($actor['rol']==='admin'): ?><section><h2>Usuarios de la intranet</h2><p>Cada cuenta accede a los módulos de su rol y a los registros con los que está vinculada.</p><ul><?php foreach ($users as $user): ?><li><?= e($user['name']) ?> — <?= e($user['username']) ?> (<?= e($user['role']) ?>)</li><?php endforeach ?></ul></section>
 <section><h2>Crear usuario</h2><form method="post">

@@ -53,6 +53,8 @@ docker exec -w /workspace/app app-php php tests/area-compatibility.php
 NODE_PATH=/workspace/nasca-dev/tools/node_modules PORTAL_BASE_URL=http://127.0.0.1:8084 node tests/browser-areas.cjs
 docker exec -w /workspace/app app-php php tests/inactive-routing.php
 docker exec -w /workspace/app app-php php tests/legacy-migration.php
+docker exec -w /workspace/app app-php php tests/intranet.php && docker exec -w /workspace/app app-php php tests/qa-correcciones.php
+docker exec -w /workspace/app app-php php tests/intranet.php && NODE_PATH=/workspace/nasca-dev/tools/node_modules PORTAL_BASE_URL=http://127.0.0.1:8084 node tests/browser-qa-correcciones.cjs
 ```
 
 Se retiraron los informes, paquetes y suites históricas del portal completo; se conservan las seis pruebas vigentes de esta intranet. `tests/legacy-migration.php` comprueba el paso de las tablas heredadas `pisco_*` a `intranet_*` y la restauración de respaldos `.piscobak`. Las pruebas actuales evalúan el alcance reducido, los permisos y los recorridos conservados. El correo saliente para nuevos trámites requiere habilitar SMTP y cron según [NOTIFICACIONES-CORREO.md](NOTIFICACIONES-CORREO.md). La carga de información académica real sigue pendiente de configuración institucional.

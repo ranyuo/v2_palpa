@@ -63,7 +63,7 @@ receptor afecta a los nuevos registros, no redirige mensajes ya encolados.
    ```
 
    No uses una URL pública para ejecutar el trabajador. Si usas `PORTAL_CONFIG_FILE`,
-   configúralo también en la tarea cron. El envío inicial se intenta al registrar trámites, reclamos y empresas; el cron
+   configúralo también en la tarea cron. El envío inicial se intenta justo después de responder al registrar trámites, reclamos y empresas, y al guardar derivaciones o cambios de estado (la persona no espera al servidor SMTP); el cron
    procesa los avisos restantes, los seguimientos y los eventos de Bolsa Laboral.
    **El cron cada minuto es necesario para estos eventos y sus reintentos.**
 6. Comprueba que PHP tenga OpenSSL, PDO MySQL, Ctype y las extensiones habituales
@@ -180,3 +180,14 @@ entregados permanece disponible según la retención prevista.
 
 La revisión detallada está en [REVISION-NOTIFICACIONES.md](REVISION-NOTIFICACIONES.md).
 La migración desde la cola anterior se prueba con `php tests/mail-migration.php`.
+
+## Envío diferido y avisos opcionales
+
+- El primer intento SMTP se ejecuta **después** de entregar la respuesta (`fastcgi_finish_request`
+  o `litespeed_finish_request` en Hostinger). Si el servidor SMTP tarda o falla, el registro ya está
+  confirmado y el mensaje queda en la cola con su error para que el cron lo reintente.
+- Los avisos generados al guardar en la intranet (derivaciones, estados, bolsa laboral) también se
+  intentan al terminar la respuesta, sin esperar al siguiente minuto del cron.
+- En Mesa de Partes, las casillas **Enviar aviso por correo** de *Derivar expediente* y *Actualizar
+  estado* vienen marcadas. Desmarcarlas omite el aviso solo para ese cambio (por ejemplo, una
+  corrección interna). La marca no se guarda en el expediente.

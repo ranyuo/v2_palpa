@@ -1,6 +1,7 @@
 /* Persistencia y autorización PHP/MySQL. Los datos del navegador no conceden permisos. */
 function portalURL(url) { return url.startsWith('/api/') ? '/index.php?route=' + encodeURIComponent(url.slice(1)) : url; }
 const portalBootstrap=window.PORTAL_BOOTSTRAP;
+if(portalBootstrap?.user?.cambioClave)location.replace('/accounts.php');
 for(const [key,value] of Object.entries(portalBootstrap.roles||{}))if(ROLES[key])Object.assign(ROLES[key],value);
 let portalRevision=portalBootstrap.revision;
 let portalBaseline=structuredClone(portalBootstrap.data);
@@ -189,6 +190,9 @@ document.addEventListener('submit',async event=>{
 },true);
 
 const portalDownloadBlob=downloadBlob;
+const portalAudit=audit;
+// El servidor descarta la auditoría enviada por el navegador; los accesos denegados se registran en intranet_audit.
+audit=function(accion,entidad,registro='',detalle=''){const result=portalAudit(accion,entidad,registro,detalle);if(accion==='Acceso denegado'&&currentUser())fetch(portalURL('/api/eventos'),{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':portalBootstrap.csrf},body:JSON.stringify({action:'Acceso denegado',entity:String(entidad||'').slice(0,250),route:String(registro||'').slice(0,250),reason:String(detalle||'').slice(0,250)})}).catch(()=>{});return result;};
 downloadBlob=function(blob,filename){if(currentUser())fetch(portalURL('/api/eventos'),{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':portalBootstrap.csrf},body:JSON.stringify({action:'Exportar',filename:String(filename||'archivo').slice(0,200),size:blob?.size||0})}).catch(()=>{});return portalDownloadBlob(blob,filename);};
 
 const portalProgramFields=SPECS.programas.fields;

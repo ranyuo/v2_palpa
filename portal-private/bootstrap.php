@@ -39,11 +39,44 @@ function portal_headers(): void
     header('Referrer-Policy: strict-origin-when-cross-origin');
 }
 
+/**
+ * Programa una tarea para después de entregar la respuesta (p. ej. el primer intento de envío SMTP).
+ * En CLI (cron, pruebas) se ejecuta de inmediato porque no hay un cliente esperando.
+ */
+function portal_defer(callable $task): void
+{
+    if (PHP_SAPI === 'cli') { portal_run_task($task); return; }
+    $GLOBALS['portal_deferred_tasks'][] = $task;
+}
+
+function portal_run_task(callable $task): void
+{
+    try { $task(); } catch (Throwable $error) { error_log('Intranet Palpa: tarea diferida fallida: '.$error->getMessage()); }
+}
+
+/** Cierra la respuesta HTTP y ejecuta las tareas diferidas sin que el usuario espere. */
+function portal_finish_deferred(): void
+{
+    $tasks = $GLOBALS['portal_deferred_tasks'] ?? [];
+    $GLOBALS['portal_deferred_tasks'] = [];
+    if (!$tasks) return;
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+    ignore_user_abort(true);
+    if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+    elseif (function_exists('litespeed_finish_request')) litespeed_finish_request();
+    else { while (ob_get_level() > 0) ob_end_flush(); flush(); }
+    @set_time_limit(120);
+    foreach ($tasks as $task) portal_run_task($task);
+}
+
 function portal_json(array $body, int $status = 200): never
 {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(PortalContent::forJson($body), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR);
+    $json = json_encode(PortalContent::forJson($body), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR);
+    if (!empty($GLOBALS['portal_deferred_tasks'])) { header('Content-Length: '.strlen($json)); header('Connection: close'); }
+    echo $json;
+    portal_finish_deferred();
     exit;
 }
 

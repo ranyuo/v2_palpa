@@ -299,7 +299,8 @@ final class PortalApp
     {
         $user=$this->requireUser();$this->rate('save',120,60);
         if(!isset($input['revision'])||!is_int($input['revision'])||(!isset($input['patch'])&&!is_array($input['data']??null)))throw new PortalError(422,'Contenido o revisión no válidos.');
-        return $this->transaction(function()use($input,$user){
+        // Los avisos generados al guardar (derivaciones, estados, bolsa) se envían tras responder; el cron queda como respaldo.
+        $result=$this->transaction(function()use($input,$user){
             $state=$this->state(true);$user=$this->requireUser();if(!isset($input['patch'])&&(int)$state['revision']!==$input['revision'])throw new PortalError(409,'Otra persona guardó cambios. Recarga la página antes de continuar.');
             $previous=json_decode($state['data'],true,flags:JSON_THROW_ON_ERROR);
             foreach($input['data']['usuarios']??[] as $account)if(!is_array($account)||isset($account['passHash'],$account['password'])||isset($account['passHash'])||isset($account['password']))throw new PortalError(422,'Las contraseñas se gestionan mediante el servicio de cuentas.');
@@ -317,6 +318,7 @@ final class PortalApp
             $allAccounts=array_map($this->accountDto(...),$this->db()->query('SELECT * FROM intranet_users')->fetchAll());
             PortalDomain::notifications($previous,$data,$allAccounts);
             PortalNotifications::changes($this->db(),$previous,$data,(int)$state['revision']+1,$allAccounts);
+            foreach(['expedientes','reclamos'] as $collection)foreach($data[$collection] as &$row)unset($row['sinAviso']);unset($row);
             $data['usuarios']=[];$data['__v']=14;$data['visitas']=$previous['visitas']??[];
             $changed=[];foreach($data as $key=>$value)if(!PortalPolicy::equal($value,$previous[$key]??null))$changed[]=$key;
             PortalAudit::changes($this,$previous,$data,$user);
@@ -327,6 +329,8 @@ final class PortalApp
             if($this->user()&&$this->user()['rol']==='admin'){$projected['auditoria']=[...PortalAudit::rows($this),...PortalAudit::legacy($this,$data)];$projected['academico']['bitacora']=array_map(fn($r)=>['id'=>$r['id'],'f'=>$r['fecha'],'u'=>$r['usuario'],'a'=>$r['accion'],'m'=>$r['entidad'],'d'=>$r['registro'].' · '.$r['detalle']],PortalAudit::rows($this));}
             return ['revision'=>(int)$state['revision']+1,'user'=>$this->user(),'users'=>$this->visibleAccounts($this->user(),$data),'normalized'=>$projected,'files'=>array_values($aliases)];
         });
+        if(PortalNotifications::$queued>0){PortalNotifications::$queued=0;portal_defer(fn()=>$this->processMail(10));}
+        return $result;
     }
     public function track(array $input): array
     {
@@ -366,13 +370,18 @@ final class PortalApp
             $this->createAccount(['username'=>$r['ruc'],'name'=>$r['nom'],'email'=>$r['correo'],'password'=>$r['password'],'role'=>'empresa','vin'=>'emp:'.$id,'dni'=>$r['ruc']],false);
             return ['company'=>$company,'username'=>$r['ruc'],'revision'=>(int)$state['revision']+1];
         });
-        try{$this->processMail(2,hash('sha256','empresas|'.$result['company']['id']));}catch(Throwable $error){error_log('Intranet Palpa: avisos de empresa pendientes en cola.');}
+        $companyMail=hash('sha256','empresas|'.$result['company']['id']);portal_defer(fn()=>$this->processMail(2,$companyMail));
         return $result;
     }
     public function interfaceEvent(array $input): array
     {
         $this->requireUser();$this->rate('events',120,60);
-        $action=$input['action']??'';if(!in_array($action,['Exportar','Vista previa'],true))throw new PortalError(422,'Evento no permitido.');
+        $action=$input['action']??'';if(!in_array($action,['Exportar','Vista previa','Acceso denegado'],true))throw new PortalError(422,'Evento no permitido.');
+        if($action==='Acceso denegado'){
+            $entity=$input['entity']??'';$route=$input['route']??'';$reason=$input['reason']??'';
+            foreach([$entity,$route,$reason] as $value)if(!is_string($value)||strlen($value)>250)throw new PortalError(422,'Evento no válido.');
+            PortalAudit::write($this,$action,$entity!==''?$entity:'Intranet',$route,['origen'=>'Interfaz','motivo'=>$reason!==''?$reason:'Módulo no permitido para el rol']);return ['ok'=>true];
+        }
         $filename=$input['filename']??'';if(!is_string($filename)||strlen($filename)>200)throw new PortalError(422,'Nombre de archivo no válido.');
         PortalAudit::write($this,$action,'Interfaz',$filename,['origen'=>'Solicitud desde la interfaz','bytes'=>max(0,(int)($input['size']??0))]);return ['ok'=>true];
     }
@@ -537,8 +546,8 @@ final class PortalApp
         });
         if(in_array($type,['expedientes','reclamos'],true)){
             $mailId=$type==='expedientes'?$result['record']['id']:hash('sha256',$type.'|'.$result['record']['id']);
-            try{$this->processMail(3,$mailId);}
-            catch(Throwable $error){error_log('Intranet Palpa: cola de correo pendiente; revisar trabajador SMTP.');}
+            // El primer intento SMTP se hace después de responder; si falla, el cron reintenta desde la cola.
+            portal_defer(fn()=>$this->processMail(3,$mailId));
         }
         return $result;
     }

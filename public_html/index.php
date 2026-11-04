@@ -24,6 +24,10 @@ try {
         // Cerrar sesión no necesita un cuerpo JSON; la protección CSRF ya se comprobó.
         if ($route === 'api/session' && $method === 'DELETE') portal_json($app->logout());
         $input = $method === 'GET' ? [] : $app->input();
+        // Con una contraseña temporal solo se permite cargar el portal, cambiarla o cerrar sesión.
+        if (!in_array($route, ['api/portal', 'api/password', 'api/session', 'api/visitas', 'api/eventos'], true) || ($route === 'api/portal' && $method !== 'GET')) {
+            if (!empty($app->user()['cambioClave'])) throw new PortalError(403, 'Cambia tu contraseña temporal antes de continuar.');
+        }
         if ($route === 'api/desafio' && $method === 'POST') portal_json($app->challenge($input));
         if ($route === 'api/eventos' && $method === 'POST') portal_json($app->interfaceEvent($input));
         if ($route === 'api/cuentas' && $method === 'POST') portal_json($app->accountOperation($input));

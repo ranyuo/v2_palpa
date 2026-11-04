@@ -88,10 +88,20 @@ trait PortalAccounts
     {
         $this->requireAdmin();return array_map(fn($r)=>['id'=>(int)$r['id'],'username'=>$r['username'],'name'=>$r['name'],'email'=>$r['email'],'role'=>$r['role'],'active'=>$r['active'],'profile'=>json_decode($r['profile']??'{}',true)??[]],$this->db()->query('SELECT * FROM intranet_users ORDER BY username')->fetchAll());
     }
-    public function createAccount(array $input,bool $authorize=true): void
+    /** Contraseña temporal aleatoria, sin prefijos fijos, con mayúsculas, minúsculas y dígitos. */
+    public static function temporaryPassword(): string
+    {
+        $alphabet='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+        do{$chars='';for($i=0;$i<16;$i++)$chars.=$alphabet[random_int(0,strlen($alphabet)-1)];}
+        while(!preg_match('/[A-Z]/',$chars)||!preg_match('/[a-z]/',$chars)||!preg_match('/[0-9]/',$chars));
+        return implode('-',str_split($chars,4));
+    }
+    public function createAccount(array $input,bool $authorize=true,bool $temporary=false): void
     {
         if($authorize){$this->requireAdmin();$this->rate('accounts',120,60);}
         $data=$this->accountInput($input);
+        // Una clave definida por otra persona es temporal: el titular debe cambiarla en su primer ingreso.
+        if($temporary)$data['profile']['cambioClave']=true;
         try{$this->db()->prepare('INSERT INTO intranet_users (username,name,email,password,role,profile) VALUES (?,?,?,?,?,?)')->execute([$data['username'],$data['name'],$data['email'],password_hash($data['password'],PASSWORD_DEFAULT),$data['role'],json_encode($data['profile'],JSON_THROW_ON_ERROR)]);}
         catch(PDOException $e){if($e->getCode()==='23000')throw new PortalError(422,'El usuario o correo ya está registrado.');throw $e;}
         PortalAudit::write($this,'Crear cuenta','Cuentas',(string)$this->db()->lastInsertId(),['usuario'=>$data['username'],'rol'=>$data['role']]);
@@ -111,20 +121,23 @@ trait PortalAccounts
             $state=json_decode($this->state()['data'],true);$student=PortalPolicy::find($state['academico']['estudiantes']??[],'id',$input['student_id']??null);
             if(!$student)throw new PortalError(422,'Alumno no encontrado.');
             if($role==='coordinador'&&($student['prog']??null)!==($state['academico']['progMap'][$actor['programaId']]??null))throw new PortalError(403,'Alumno de otro programa.');
-            $password='DemoICA!'.bin2hex(random_bytes(8));
+            $password=self::temporaryPassword();
             $fields=['username'=>(string)$student['dni'],'name'=>$student['nom'],'email'=>($student['correo']??'')?:$student['dni'].'@portal.invalid','password'=>$password,'role'=>in_array($student['estado'],['Egresado','Titulado'],true)?'egresado':'estudiante','vin'=>'est:'.$student['id'],'dni'=>(string)$student['dni']];
-            $this->createAccount($fields,false);return ['user'=>$this->accountDto($this->db()->query('SELECT * FROM intranet_users WHERE username = '.$this->db()->quote(strtolower($fields['username'])))->fetch()),'temporary_password'=>$password];
+            $this->createAccount($fields,false,true);return ['user'=>$this->accountDto($this->db()->query('SELECT * FROM intranet_users WHERE username = '.$this->db()->quote(strtolower($fields['username'])))->fetch()),'temporary_password'=>$password];
         }
         if($role!=='admin')throw new PortalError(403,'Solo el administrador puede editar cuentas.');
         if($action==='create'){
-            $this->createAccount($fields,false);return ['user'=>$this->accountDto($this->db()->query('SELECT * FROM intranet_users WHERE username = '.$this->db()->quote(strtolower($fields['username'])))->fetch())];
+            $this->createAccount($fields,false,true);return ['user'=>$this->accountDto($this->db()->query('SELECT * FROM intranet_users WHERE username = '.$this->db()->quote(strtolower($fields['username'])))->fetch())];
         }
         $id=filter_var($input['id']??null,FILTER_VALIDATE_INT);if(!$id)throw new PortalError(422,'Identificador de cuenta no válido.');
         $stmt=$this->db()->prepare('SELECT * FROM intranet_users WHERE id = ? FOR UPDATE');$stmt->execute([$id]);$old=$stmt->fetch();if(!$old)throw new PortalError(404,'Cuenta no encontrada.');
         if(isset($input['expected'])){$dto=$this->accountDto($old);$expected=['username'=>$dto['usuario'],'name'=>$dto['nombre'],'email'=>$dto['correo']??'','role'=>$dto['rol'],'estado'=>$dto['estado']];foreach(['vin','dni','personaId','programaId','area','cargo'] as $key)$expected[$key]=$dto[$key]??'';if(!PortalPolicy::equal($expected,$input['expected']))throw new PortalError(409,'Otra persona modificó esta cuenta. Recarga antes de continuar.');}
         if($action==='unlock'){PortalAudit::write($this,'Desbloquear cuenta','Cuentas',(string)$id);$this->db()->prepare('UPDATE intranet_users SET login_failures=0,locked_until=NULL WHERE id=?')->execute([$id]);return ['ok'=>true];}
         if($action!=='update')throw new PortalError(422,'Acción no válida.');
-        $data=$this->accountInput($fields,false);$active=($fields['active']??$fields['estado']??'Activo');$active=($active===true||$active===1||$active==='Activo')?1:0;
+        $data=$this->accountInput($fields,false);
+        $oldProfile=json_decode($old['profile']??'{}',true)??[];
+        if(!empty($oldProfile['cambioClave'])||($data['password']!==''&&(int)$actor['server_id']!==$id))$data['profile']['cambioClave']=true;
+        $active=($fields['active']??$fields['estado']??'Activo');$active=($active===true||$active===1||$active==='Activo')?1:0;
         if($data['username']!==$old['username'])throw new PortalError(422,'El nombre de usuario existente no se puede cambiar.');
         if((int)$actor['server_id']===$id&&(!$active||$data['role']!=='admin'))throw new PortalError(422,'No puedes quitarte el acceso de administrador.');
         if($old['role']==='admin'&&(!$active||$data['role']!=='admin')&&(int)$this->db()->query("SELECT COUNT(*) FROM intranet_users WHERE role='admin' AND active=1")->fetchColumn()<=1)throw new PortalError(422,'Debe quedar al menos un administrador activo.');
@@ -141,9 +154,11 @@ trait PortalAccounts
         $user=$this->requireUser();$this->rate('password',5,300);
         $data=self::validate($input,['current_password'=>'required|string|max:72','password'=>'required|string|min:12|max:72']);
         if(($input['password_confirmation']??null)!==$data['password']||strlen($data['password'])>72)throw new PortalError(422,'La contraseña nueva y su confirmación deben coincidir.');
-        $stmt=$this->db()->prepare('SELECT password,auth_version FROM intranet_users WHERE id=?');$stmt->execute([$user['server_id']]);$old=$stmt->fetch();
+        $stmt=$this->db()->prepare('SELECT password,auth_version,profile FROM intranet_users WHERE id=?');$stmt->execute([$user['server_id']]);$old=$stmt->fetch();
         if(!password_verify($data['current_password'],$old['password']))throw new PortalError(422,'La contraseña actual no es correcta.');
-        $this->db()->prepare('UPDATE intranet_users SET password=?,auth_version=auth_version+1,login_failures=0,locked_until=NULL WHERE id=?')->execute([password_hash($data['password'],PASSWORD_DEFAULT),$user['server_id']]);
+        if(password_verify($data['password'],$old['password']))throw new PortalError(422,'La contraseña nueva debe ser distinta de la actual.');
+        $profile=json_decode($old['profile']??'{}',true)??[];unset($profile['cambioClave']);
+        $this->db()->prepare('UPDATE intranet_users SET password=?,profile=?,auth_version=auth_version+1,login_failures=0,locked_until=NULL WHERE id=?')->execute([password_hash($data['password'],PASSWORD_DEFAULT),json_encode($profile,JSON_THROW_ON_ERROR),$user['server_id']]);
         PortalAudit::write($this,'Cambiar contraseña','Cuentas',(string)$user['server_id'],[],$user);
         $_SESSION['auth_version']=(int)$old['auth_version']+1;session_regenerate_id(true);
     }

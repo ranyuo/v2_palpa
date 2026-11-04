@@ -4,11 +4,14 @@ declare(strict_types=1);
 /** Eventos confirmados del servidor; nunca acepta destinatarios enviados por el navegador. */
 final class PortalNotifications
 {
+    /** Avisos encolados en esta petición; permite intentar el envío al terminar la respuesta. */
+    public static int $queued=0;
     private static function emit(PDO $db,string $module,array $row,string $event,string $version,array $recipients,string $reference,string $subject,string $body): void
     {
         foreach(array_unique(array_map(fn($s)=>strtolower(trim((string)$s)),$recipients)) as $to){
             if($to===''||strlen($to)>254||!filter_var($to,FILTER_VALIDATE_EMAIL))continue;
             PortalMail::queue($db,$module,(string)$row['id'],$event,$version,$to,$reference,$subject,$body,self::identity($module,$row));
+            self::$queued++;
         }
     }
     public static function received(PDO $db,string $module,array $row,array $data): void
@@ -54,6 +57,8 @@ final class PortalNotifications
             $areaChanged=($before['area']??'')!==($row['area']??'');
             $answered=($before['respuesta']??'')!==($row['respuesta']??'')&&trim($row['respuesta']??'')!=='';
             if(!$stateChanged&&!$areaChanged&&!$answered)continue;
+            // El personal puede omitir el aviso de un cambio puntual (p. ej. correcciones internas).
+            if(($row['sinAviso']??false)===true)continue;
             $ref=$row['numero']??$row['codigo'];$state=($row['anulado']??false)?'Anulado':$row['estado'];
             $area=$areas[(string)($row['area']??'')]??null;
             $areaName=$area['nombre']??($row['area']??'');if($areaName==='')$areaName='Sin área asignada';

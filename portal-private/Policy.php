@@ -100,7 +100,7 @@ final class PortalPolicy
                 $student=self::find($data['academico']['estudiantes']??[],'id',$est);
                 if(!$student)return false;
                 $g=implode('|',[$student['prog'],$student['ciclo'],$student['sec'],$student['turno'],$data['academico']['cfg']['periodo']]);
-                return isset($data['academico']['publicados'][$g])&&(int)($row['prog']??0)===(int)$student['prog']&&(string)($row['ciclo']??'')===(string)$student['ciclo']&&($row['sec']??'')===$student['sec']&&($row['turno']??'')===$student['turno'];
+                return isset($data['academico']['publicados'][$g])&&($row['per']??'')===($data['academico']['cfg']['periodo']??'')&&(int)($row['prog']??0)===(int)$student['prog']&&(string)($row['ciclo']??'')===(string)$student['ciclo']&&($row['sec']??'')===$student['sec']&&($row['turno']??'')===$student['turno'];
             }
         }
         if($role==='docente') {

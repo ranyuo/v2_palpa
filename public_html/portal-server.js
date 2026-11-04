@@ -92,7 +92,7 @@ saveDB=function(){
         Object.assign(record,result.record);Object.defineProperty(record,'__serverSaved',{value:true});portalKnown.add(type+':'+record.id);portalBaseline[type].unshift(structuredClone(result.record));if(currentUser()){portalRevision=result.revision;if(result.counters){DB.config.contadores=structuredClone(result.counters);portalBaseline.config.contadores=structuredClone(result.counters);}}
       }
     }
-    if(!currentUser()||!location.hash.startsWith('#/admin'))return true;
+    if(!currentUser()||(!location.hash.startsWith('#/admin')&&!(typeof window.PORTAL_EMPLOYMENT_CONTEXT==='function'&&window.PORTAL_EMPLOYMENT_CONTEXT())))return true;
     portalNormalizeAutomaticChanges();
     const accounts=portalAccountOperations();
     if(!accounts.length&&JSON.stringify(DB)===JSON.stringify(portalBaseline))return true;

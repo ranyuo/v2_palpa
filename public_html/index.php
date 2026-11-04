@@ -5,7 +5,14 @@ portal_headers();
 $route = is_string($_GET['route'] ?? null) ? trim($_GET['route'], '/') : '';
 try {
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-    if (!in_array($path, ['/', '/index.php'], true)) throw new PortalError(404, 'Página no encontrada.');
+    $serviceEntries = [
+        '/mesa-de-partes.php'=>'servicios/mesa-de-partes',
+        '/libro-de-reclamaciones.php'=>'servicios/libro-de-reclamaciones',
+        '/bolsa-laboral.php'=>'servicios/bolsa-laboral',
+        '/certificados.php'=>'servicios/consulta-certificados',
+    ];
+    $publicService = defined('PORTAL_PUBLIC_SERVICE') ? PORTAL_PUBLIC_SERVICE : null;
+    if (!in_array($path, ['/', '/index.php'], true) && (!$publicService || ($serviceEntries[$path]??null)!==$publicService)) throw new PortalError(404, 'Página no encontrada.');
     $app = portal_app();
     if ($route !== '') {
         $method = $_SERVER['REQUEST_METHOD'];
@@ -36,6 +43,7 @@ try {
     }
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') throw new PortalError(405, 'Método no permitido.');
     $bootstrap = $app->bootstrap();
+    if($publicService)$bootstrap['standaloneService']=$publicService;
     header('Content-Type: text/html; charset=utf-8');
     require dirname(__DIR__).'/portal-private/views/portal.php';
 } catch (Throwable $error) {

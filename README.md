@@ -87,3 +87,11 @@ PORTAL_BASE_URL=http://127.0.0.1:8084 node tests/browser-academic-documents.cjs
 El segundo comando conserva los datos de la suite base y agrega sus propios documentos QA.
 No debe ejecutarse sobre una instalación real. Las unidades heredadas permanecen pendientes
 de asociación a módulos hasta que el personal complete esa configuración.
+
+Las cuatro páginas públicas tienen entradas independientes: `/mesa-de-partes.php`,
+`/libro-de-reclamaciones.php`, `/bolsa-laboral.php` y `/certificados.php`. Sus funciones y
+accesos se describen en [Operación](OPERACION-INTRANET.md#páginas-públicas-independientes).
+La regresión `node tests/browser-standalone-services.cjs` se ejecuta sobre los datos de
+`tests/intranet.php` y verifica aislamiento de páginas, móvil, privacidad y acceso laboral
+con guardado real. `tests/browser-areas.cjs` prueba envíos y derivaciones usando las nuevas
+entradas públicas.

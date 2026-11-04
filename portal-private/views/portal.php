@@ -8444,5 +8444,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 <script src="/portal-server.js"></script>
 <script src="/intranet.js"></script>
 <script src="/academic-documents.js"></script>
+<script src="/standalone-services.js"></script>
 </body>
 </html>

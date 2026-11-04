@@ -65,3 +65,39 @@ ni elimina unidades. En instalaciones anteriores a la versión de datos 14 se ha
 de configuración académica para Secretaría y Coordinación, y consulta para Dirección;
 Coordinación continúa limitada a su programa. Las restricciones explícitas de módulos de
 cada rol siguen vigentes. Revisa la asignación institucional desde Usuarios y roles.
+
+## Páginas públicas independientes
+
+Cada servicio puede enlazarse directamente desde la web institucional:
+
+| Servicio | Ruta pública |
+| --- | --- |
+| Mesa de partes virtual | `/mesa-de-partes.php` |
+| Libro de reclamaciones | `/libro-de-reclamaciones.php` |
+| Bolsa laboral | `/bolsa-laboral.php` |
+| Consulta de documentos | `/certificados.php` |
+
+Estas páginas muestran únicamente el servicio correspondiente: no incluyen el menú de la
+intranet, la barra de otros servicios ni enlaces de navegación a los demás módulos.
+Privacidad y términos se consultan en un diálogo dentro de la misma página. Los enlaces
+anteriores por hash continúan funcionando con la presentación independiente.
+
+Mesa de partes y Reclamaciones conservan registro, adjuntos, constancias y seguimiento.
+Certificados reúne grados y títulos, constancias/certificados y certificación modular en una
+sola consulta, con impresión. Los códigos QR apuntan a la página de verificación.
+
+En Bolsa laboral, «Mi acceso laboral» utiliza las cuentas institucionales de estudiantes,
+egresados y empresas. El perfil, CV, postulaciones y gestión empresarial se mantienen dentro
+del servicio, con los permisos y validaciones del servidor. El registro de una empresa nueva
+se realiza sin una sesión activa. La validación institucional de empresas y ofertas continúa
+en la intranet. Las páginas públicas comparten la misma base y sesión: no crean maestros ni
+cuentas duplicados.
+
+Para actualizar una instalación existente, incluye los cuatro archivos PHP nuevos,
+`standalone-services.js`, `index.php`, `portal-server.js`, `intranet.css` y la vista PHP actualizada.
+No se requiere recrear la base ni modificar sus registros para habilitar estos accesos.
+
+Para comprobar estos cambios en desarrollo, ejecuta primero la suite PHP base y luego
+`node tests/browser-standalone-services.cjs`. Esta prueba utiliza exclusivamente cuentas QA
+y una base desechable; verifica las cuatro entradas, enlaces anteriores, móvil, acceso y
+cierre de sesión, y persistencia del perfil laboral sin abandonar Bolsa laboral.

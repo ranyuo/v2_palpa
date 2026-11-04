@@ -116,11 +116,11 @@ cambiarlo desde el formulario SMTP.
 | Reclamo o queja registrados | Ciudadano y responsables configurados de Reclamos |
 | Reclamo cambia de estado, se responde o se anula | Ciudadano; la respuesta formal solo se envía a su correo |
 | Reclamo derivado | Ciudadano y correo del área receptora |
-| Empresa registrada | Empresa y responsable de Bolsa Laboral |
+| Empresa registrada desde la web o administración | Empresa y responsable de Bolsa Laboral; sin prometer acceso si todavía no hay cuenta habilitada |
 | Empresa aprobada, rechazada o suspendida | Empresa |
 | Oferta propuesta / por validar | Empresa y responsable de Bolsa Laboral |
 | Oferta publicada o cambia de estado | Empresa |
-| Oferta cerrada o rechazada con postulaciones existentes | Empresa y postulantes de esa oferta |
+| Oferta cerrada o rechazada con postulaciones existentes | Empresa y postulantes que no hayan retirado o eliminado su postulación |
 | Postulación registrada | Postulante, empresa y responsable de Bolsa Laboral |
 | Postulación cambia de estado | Postulante y empresa |
 
@@ -133,7 +133,7 @@ Los correos coincidentes reciben un solo mensaje por evento. Guardar sin cambiar
 el evento no envía otro aviso. Las notas internas, las ediciones del perfil, los
 currículos y los adjuntos privados no se envían por este canal. La postulación
 usa el correo de la cuenta activa vinculada al estudiante, o el del maestro si
-no existe cuenta vinculada. Las cuentas inactivas no reciben ese aviso personal.
+no existe cuenta vinculada. Si la cuenta ya estaba inactiva al generar el evento, no se encola ese aviso personal.
 
 Si falta el correo institucional de Reclamos o Bolsa, el panel muestra una
 advertencia y se conserva el registro y su notificación personal cuando existe
@@ -169,3 +169,14 @@ un certificado de prueba confiado explícitamente para ese servidor, usa credenc
 ficticias y comprueba entregas, autenticación fallida, certificado no confiable,
 idempotencia, reintentos, permisos y reversión transaccional. No contacta Gmail.
 Los artefactos se guardan en la carpeta ignorada `tests/.results/`.
+
+## Revisión de compatibilidad y origen de los avisos
+
+Los nuevos mensajes incorporan una huella del registro que los originó. Si el
+registro se elimina, se sustituye o se reasigna de forma que ya no coincida esa
+identidad, el trabajador cancela su aviso pendiente. La cola anterior de Mesa de
+Partes conserva su vinculación por ID y referencia. El historial de mensajes ya
+entregados permanece disponible según la retención prevista.
+
+La revisión detallada está en [REVISION-NOTIFICACIONES.md](REVISION-NOTIFICACIONES.md).
+La migración desde la cola anterior se prueba con `php tests/mail-migration.php`.

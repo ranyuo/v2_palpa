@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
-require dirname(__DIR__).'/portal-private/bootstrap.php';
+// Cliente independiente para no acumular cuotas entre suites distintas.
+$_SERVER['REMOTE_ADDR']='127.0.0.27';
+ob_start();require dirname(__DIR__).'/portal-private/bootstrap.php';
 $path=getenv('PORTAL_CONFIG_FILE');if(!$path||!str_ends_with($path,'config.test.php'))throw new RuntimeException('Solo config.test.php.');
 $config=require $path;if(!str_ends_with($config['db_name'],'_test'))throw new RuntimeException('Solo base desechable _test.');
 $count=0;
@@ -41,3 +43,5 @@ unlink(PortalBackups::path($legacyId));
 $fresh=PortalBackups::create($app,'manual');ok(str_ends_with(PortalBackups::path($fresh['id']),'.intranetbak')&&$fresh['format']==='intranet-backup','Los respaldos nuevos usan el formato intranet');
 unlink(PortalBackups::path($fresh['id']));
 echo "$count comprobaciones de migración de nombres aprobadas.\n";
+
+ob_end_flush();

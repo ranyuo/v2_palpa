@@ -8,6 +8,9 @@ const portalPasswords=new Map();
 const portalProofs=Object.create(null);
 const portalSent=new WeakMap();
 const portalKnown=new Set(['mensajes','reclamos','expedientes','suscriptores'].flatMap(t=>(portalBootstrap.data[t]||[]).map(r=>t+':'+r.id)));
+// Región fuera de los formularios aria-busy para anunciar el progreso sin esperar al final.
+const portalSubmissionAnnouncer=document.createElement('div');portalSubmissionAnnouncer.className='portal-submission-announcer';portalSubmissionAnnouncer.setAttribute('role','status');portalSubmissionAnnouncer.setAttribute('aria-live','polite');portalSubmissionAnnouncer.setAttribute('aria-atomic','true');document.body.append(portalSubmissionAnnouncer);
+function portalSubmissionStatus(message){portalSubmissionAnnouncer.textContent=message;}
 function portalRequest(method,url,body) {
   const xhr=new XMLHttpRequest(); xhr.open(method,portalURL(url),false);
   xhr.setRequestHeader('Content-Type','application/json');xhr.setRequestHeader('Accept','application/json');xhr.setRequestHeader('X-CSRF-TOKEN',portalBootstrap.csrf);
@@ -142,7 +145,11 @@ const portalOriginalAdmin=renderAdmin;
 renderAdmin=function(parts,query){if(currentUser()?.rol==='admin'&&parts[1]==='respaldo')return {html:admHead('Respaldos y restauración','Crea, restaura y programa copias completas de contenido, cuentas y archivos.','','download')+`<section class="panel"><div class="pb"><a class="btn" href="/respaldos.php">Administrar respaldos y restauración</a><p>Las copias se guardan en la carpeta privada del portal.</p></div></section>`};if(currentUser()&&parts[1]==='perfil'){location.href='/accounts.php';return {html:''};}const out=portalOriginalAdmin(parts,query);if(currentUser()?.rol==='admin'&&parts[1]==='auditoria')out.html=`<p><a class="btn" href="/auditoria.php">Consultar y exportar el historial completo</a></p>`+out.html;return out;};
 IXHOST.createStudentAccount=function(student){try{const result=portalRequest('POST','/api/cuentas',{action:'student',student_id:student.id});DB.usuarios.push(result.user);portalBaseline.usuarios=structuredClone(DB.usuarios);return {usuario:result.user.usuario,pass:result.temporary_password,rolLabel:ROLES[result.user.rol].label};}catch(error){return {error:error.message};}};
 IXHOST.defaultPermissions=function(){return portalBootstrap.data.academico.perms;};
-IXHOST.registerCompany=async function(values){const response=await fetch(portalURL('/api/empresas'),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':portalBootstrap.csrf},body:JSON.stringify({...values,password:values.pass})});const result=await response.json();if(!response.ok)throw new Error(result.message||'No se pudo registrar la empresa.');return result;};
+IXHOST.registerCompany=async function(values){
+ let response,result;try{response=await fetch(portalURL('/api/empresas'),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':portalBootstrap.csrf},body:JSON.stringify({...values,password:values.pass})});result=await response.json();}
+ catch{throw new Error('No se pudo confirmar la respuesta. Si la empresa ya quedó registrada, ingresa con su RUC y la contraseña elegida; no crees otra cuenta.');}
+ if(!response.ok)throw new Error(result.message||'No se pudo registrar la empresa.');return result;
+};
 async function portalUpload(file){
   const body=new FormData();body.append('file',file);if(!currentUser()){const purpose=document.querySelector('#cap-mpv,#cap-mp')?'expedientes':'reclamos';body.append('purpose',purpose);body.append('proof',JSON.stringify(portalProofs[purpose]||{}));}
   const response=await fetch(portalURL('/api/archivos'),{method:'POST',headers:{'Accept':'application/json','X-CSRF-TOKEN':portalBootstrap.csrf},body});let data;

@@ -17,3 +17,5 @@
 @media print{.standalone-header,.standalone-footer{display:none!important}.standalone-main{max-width:none;padding:0}}
 
 .mpv-progress{display:flex;align-items:flex-start;gap:14px;margin:20px 0;padding:18px;border:1px solid #ccd7ed;border-radius:12px;background:#f0f5ff;color:#14264b}.mpv-progress[hidden]{display:none}.mpv-progress p{margin:6px 0}.mpv-spinner{flex:none;display:block;width:25px;height:25px;border:3px solid #cfdaec;border-top-color:#bd3d00;border-radius:50%;animation:mpv-spin .85s linear infinite}@keyframes mpv-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.mpv-spinner{animation:none}}
+
+.portal-submission-announcer{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}

@@ -1,5 +1,7 @@
 <?php
 declare(strict_types=1);
+// Cliente independiente para no acumular cuotas entre suites distintas.
+$_SERVER['REMOTE_ADDR']='127.0.0.22';
 ob_start();
 require dirname(__DIR__).'/portal-private/bootstrap.php';
 $path=getenv('PORTAL_CONFIG_FILE');
@@ -10,6 +12,7 @@ if(($config['smtp']['enabled']??false)!==false)throw new RuntimeException('Desha
 $app=portal_app();$db=$app->db();PortalSchema::apply($db);
 $app->login(['username'=>'admin','password'=>'PruebaIntranet-2026!']);
 $count=0;
+function messagesForReview(PDO $db,string $id):array{$q=$db->prepare('SELECT id FROM intranet_mail WHERE record_id=?');$q->execute([$id]);return $q->fetchAll();}
 function check(bool $value,string $message): void{global $count;if(!$value)throw new RuntimeException($message);$count++;echo "OK $message\n";}
 function setting(string $email): void{global $app;$b=$app->bootstrap();$d=$b['data'];$d['config']['mpv']['correo']=$email;$app->save(['data'=>$d,'revision'=>$b['revision']]);}
 function input(): array{global $app;$c=$app->challenge(['purpose'=>'expedientes']);return ['record'=>['nombres'=>'Solicitante QA','tipoPersona'=>'Persona natural','tipoDoc'=>'DNI','numDoc'=>'12345678','correo'=>'solicitante@example.test','telefono'=>'999888777','tipoTramite'=>'Solicitud','asunto'=>'Prueba real de transporte SMTP local','folios'=>1,'areaDestino'=>'MP','archivos'=>[['original'=>'solicitud.pdf','data'=>'data:application/pdf;base64,'.base64_encode("%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF")]]],'idempotency_key'=>sprintf('%s-%s-%s-%s-%s',bin2hex(random_bytes(4)),bin2hex(random_bytes(2)),bin2hex(random_bytes(2)),bin2hex(random_bytes(2)),bin2hex(random_bytes(6))),'proof'=>['challenge_id'=>$c['id'],'answer'=>$_SESSION['challenges'][$c['id']]['answer'],'accept'=>true,'declare'=>true]];}
@@ -32,6 +35,8 @@ try{
  check($app->submit('expedientes',$in)['status']===200,'Reintento del mismo formulario devuelve el trámite original');
  $q->execute([$id]);check(count($q->fetchAll())===2,'Reintento del formulario no duplica mensajes');
  setting('mesa-nueva@example.test');
+ $workerLock='palpa-mail-'.substr(hash('sha256',(string)$db->query('SELECT DATABASE()')->fetchColumn()),0,40);$get=$db->prepare('SELECT GET_LOCK(?,0)');$get->execute([$workerLock]);
+ $otherApp=new PortalApp($config);try{check(($mail->process($otherApp->db(),2,$id)['busy']??false)===true,'Otro trabajador no entrega mensajes mientras existe un emisor activo');}finally{$release=$db->prepare('SELECT RELEASE_LOCK(?)');$release->execute([$workerLock]);}
  $badTls=new PortalMail([...$smtp,'ca_file'=>__DIR__.'/../portal-private/vendor/phpmailer/LICENSE']);
  check($badTls->process($db,2,$id)['failed']===2,'Certificado sin confianza impide el envío');
  check(!is_file($output),'No se entregan mensajes cuando falla TLS');
@@ -42,6 +47,7 @@ try{
  foreach($messages as $m){check($m['sender']==='notificaciones@proyectos.pe','Remitente central autenticado');check(str_contains($m['message'],'Message-ID: <palpa-'),'Identificador estable del mensaje');check(!str_contains($m['message'],'solo-prueba-local'),'El correo no contiene credenciales');$parts=preg_split('/\r?\n\r?\n/',$m['message'],2);$body=base64_decode($parts[1]??'',true);check(is_string($body)&&str_contains($body,$r['record']['numero']),'Contenido incluye el expediente registrado');if($m['recipient']==='solicitante@example.test')check(str_contains($body,$r['record']['cargoCod']),'Confirmación incluye el código de seguimiento del solicitante');}
  check($mail->process($db,2,$id)['sent']===0,'Procesar de nuevo no reenvía mensajes entregados');
  $q->execute([$id]);check(array_unique(array_column($q->fetchAll(),'status'))===['Enviado'],'Entrega SMTP queda registrada');
+ $delivered=messagesForReview($db,$id);try{PortalMail::retry($app,['id'=>$delivered[0]['id']]);throw new RuntimeException('Se reintentó un correo entregado.');}catch(PortalError $e){check($e->status===409,'El panel impide reenviar un mensaje ya entregado');}
  setting('reject@example.test');$failed=$app->submit('expedientes',input());$fid=$failed['record']['id'];
  $out=$mail->process($db,2,$fid);check($out['sent']===1&&$out['failed']===1,'Fallo institucional no bloquea la confirmación al solicitante');
  $q->execute([$fid]);$failedRow=array_values(array_filter($q->fetchAll(),fn($r)=>$r['status']==='Error'))[0];
@@ -72,6 +78,7 @@ try{
   $delivery->process($db,50,hash('sha256',$module.'|'.$source['id']));
   $query=$db->prepare("SELECT status FROM intranet_mail WHERE source_type=? AND source_id=? AND event='prueba'");$query->execute([$module,(string)$source['id']]);check($query->fetchColumn()==='Enviado','SMTP real local entrega el evento de '.$module);
  }
+ $source=$current['academico']['postulaciones'][0];$badKey=hash('sha256','titular-anterior');PortalMail::queue($db,'postulaciones',(string)$source['id'],'fuente-cambiada','review','destino@example.test','QA-REASIGNADO','Titular anterior','Este contenido no debe enviarse.',$badKey);$out=$delivery->process($db,50,hash('sha256','postulaciones|'.$source['id']));check($out['skipped']===1,'SMTP cancela un mensaje pendiente cuyo registro cambió de titular');
  PortalMail::queue($db,'empresas','999998','prueba','smtp-test','destino@example.test','QA-AUSENTE','Prueba de cancelación','Sin fuente válida.');check($delivery->process($db,2,hash('sha256','empresas|999998'))['skipped']===1,'Fuente inexistente cancela la entrega tras restauración o eliminación');
  $status=$mail->status($app);check(!str_contains(json_encode($status),'solo-prueba-local'),'Panel no expone contraseña SMTP');
  $app->logout();try{$mail->status($app);throw new RuntimeException('Panel público');}catch(PortalError $e){check($e->status===403,'Cola privada no accesible sin sesión');}

@@ -19,9 +19,10 @@ final class PortalSchema
     public static function apply(PDO $db): void
     {
         foreach (explode(';', file_get_contents(__DIR__.'/schema.sql')) as $sql) if (trim($sql) !== '') $db->exec($sql);
-        $db->exec('ALTER TABLE intranet_mail MODIFY created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)');
-        $mailColumns=array_column($db->query('SHOW COLUMNS FROM intranet_mail')->fetchAll(PDO::FETCH_ASSOC),'Field');
-        foreach(['source_type'=>"VARCHAR(30) NOT NULL DEFAULT 'expedientes'",'source_id'=>"VARCHAR(100) NOT NULL DEFAULT ''",'event'=>"VARCHAR(40) NOT NULL DEFAULT 'registro'"] as $name=>$type)if(!in_array($name,$mailColumns,true))$db->exec('ALTER TABLE intranet_mail ADD COLUMN '.$name.' '.$type);
+        $mailInfo=$db->query('SHOW COLUMNS FROM intranet_mail')->fetchAll(PDO::FETCH_ASSOC);
+        $mailColumns=array_column($mailInfo,'Field');
+        foreach($mailInfo as $column)if($column['Field']==='created_at'&&strtolower($column['Type'])!=='datetime(6)')$db->exec('ALTER TABLE intranet_mail MODIFY created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)');
+        foreach(['source_type'=>"VARCHAR(30) NOT NULL DEFAULT 'expedientes'",'source_id'=>"VARCHAR(100) NOT NULL DEFAULT ''",'source_key'=>"CHAR(64) NOT NULL DEFAULT ''",'event'=>"VARCHAR(40) NOT NULL DEFAULT 'registro'"] as $name=>$type)if(!in_array($name,$mailColumns,true))$db->exec('ALTER TABLE intranet_mail ADD COLUMN '.$name.' '.$type);
         $columns = array_column($db->query('SHOW COLUMNS FROM intranet_users')->fetchAll(PDO::FETCH_ASSOC), 'Field');
         foreach (['role' => "VARCHAR(30) NOT NULL DEFAULT 'admin'", 'profile' => 'JSON NULL',
             'auth_version' => 'INT UNSIGNED NOT NULL DEFAULT 1', 'login_failures' => 'INT UNSIGNED NOT NULL DEFAULT 0',

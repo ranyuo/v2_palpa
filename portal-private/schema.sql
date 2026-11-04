@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS intranet_mail (
     record_id CHAR(64) NOT NULL,
     source_type VARCHAR(30) NOT NULL DEFAULT 'expedientes',
     source_id VARCHAR(100) NOT NULL DEFAULT '',
+    source_key CHAR(64) NOT NULL DEFAULT '',
     event VARCHAR(40) NOT NULL DEFAULT 'registro',
     reference VARCHAR(100) NOT NULL,
     recipient VARCHAR(254) NOT NULL,

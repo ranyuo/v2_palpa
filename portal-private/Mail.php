@@ -26,20 +26,21 @@ final class PortalMail
                 "Se ha registrado un nuevo trámite en $institution.\n\nExpediente: $reference\nSolicitante: {$record['nombres']}\nCorreo del solicitante: {$record['correo']}\nTipo: {$record['tipoTramite']}\nAsunto: {$record['asunto']}\nÁrea de destino: {$record['areaDestino']}\n\nIngrese a la intranet para revisar el expediente y sus adjuntos privados.\n"],
         ];
         $insert=$db->prepare('INSERT INTO intranet_mail (id,record_id,reference,recipient,subject,body,created_at,next_attempt_at) VALUES (?,?,?,?,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE id=id');
-        foreach($messages as $kind=>[$to,$subject,$body]){
+        $seen=[];foreach($messages as $kind=>[$to,$subject,$body]){
             if(!is_string($to)||strlen($to)>254||!filter_var($to,FILTER_VALIDATE_EMAIL))throw new PortalError(422,'Configura un correo receptor válido para Mesa de Partes.');
+            $key=strtolower(trim($to));if(isset($seen[$key]))continue;$seen[$key]=true;
             $insert->execute([hash('sha256',$record['id'].'|'.$kind),$record['id'],$reference,$to,$subject,$body]);
         }
     }
 
-    public static function queue(PDO $db,string $module,string $sourceId,string $event,string $version,string $to,string $reference,string $subject,string $body): void
+    public static function queue(PDO $db,string $module,string $sourceId,string $event,string $version,string $to,string $reference,string $subject,string $body,string $sourceKey=''): void
     {
         preg_match('/^.{0,200}/us',$subject,$short);$subject=$short[0]??'Notificación institucional';
         if(strlen($body)>60000){preg_match('/^.{0,14000}/us',$body,$short);$body=($short[0]??'')."\nMensaje resumido. Consulta el contenido completo en la plataforma.\n";}
         $batch=hash('sha256',$module.'|'.$sourceId);
-        $id=hash('sha256',$batch.'|'.$event.'|'.$version.'|'.$to);
-        $insert=$db->prepare('INSERT INTO intranet_mail (id,record_id,source_type,source_id,event,reference,recipient,subject,body,created_at,next_attempt_at) VALUES (?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE id=id');
-        $insert->execute([$id,$batch,$module,$sourceId,$event,$reference,$to,$subject,'Evento registrado: '.date(DATE_ATOM)."\n".$body]);
+        $id=hash('sha256',$batch.'|'.$sourceKey.'|'.$event.'|'.$version.'|'.$to);
+        $insert=$db->prepare('INSERT INTO intranet_mail (id,record_id,source_type,source_id,source_key,event,reference,recipient,subject,body,created_at,next_attempt_at) VALUES (?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE id=id');
+        $insert->execute([$id,$batch,$module,$sourceId,$sourceKey,$event,$reference,$to,$subject,'Evento registrado: '.date(DATE_ATOM)."\n".$body]);
     }
 
     /** No se incluyen credenciales ni cuerpos de correos en el panel. */
@@ -89,7 +90,7 @@ final class PortalMail
                 $state=$db->query('SELECT data FROM intranet_state WHERE id=1')->fetchColumn();
                 $data=$state?json_decode($state,true,flags:JSON_THROW_ON_ERROR):[];
                 if(!PortalNotifications::exists($data,$row)){
-                    $db->prepare("UPDATE intranet_mail SET status='Cancelado',next_attempt_at=NULL WHERE id=?")->execute([$row['id']]);$result['skipped']++;continue;
+                    $db->prepare("UPDATE intranet_mail SET status='Cancelado',next_attempt_at=NULL,last_error='Aviso cancelado: el registro de origen fue retirado o ya no corresponde.' WHERE id=?")->execute([$row['id']]);$result['skipped']++;continue;
                 }
                 $attempt=(int)$row['attempts']+1;
                 try{

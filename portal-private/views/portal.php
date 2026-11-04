@@ -1,3 +1,13 @@
+<?php
+$portalAssets=[];
+foreach(['intranet.css','portal-server.js','intranet.js','academic-documents.js','standalone-services.js'] as $asset){
+    $assetPath=dirname(__DIR__,2).'/public_html/'.$asset;
+    if(!is_readable($assetPath))throw new PortalError(503,'Faltan recursos de la aplicación. Completa la subida de archivos.');
+    $digest=hash_file('sha256',$assetPath);
+    if($digest===false)throw new PortalError(503,'No se pudieron verificar los recursos de la aplicación.');
+    $portalAssets[$asset]='/'.$asset.'?v='.substr($digest,0,12);
+}
+?>
 <!doctype html>
 <html lang="es">
 <head>
@@ -2202,7 +2212,7 @@ tr.pz-bad td{background:var(--errbg)}
 .ix .seal.logo:has(img[src^="/assets/palpa/"]),.ix .paper .ph .plogo[src^="/assets/palpa/"]{background:#131d3b}
 @media(max-width:600px){.grid.g4:has(>.pcard){grid-template-columns:1fr}.brand img[src^="/assets/palpa/"]{width:86px;height:50px;padding:6px}.site-header .brand span small{font-size:10px}}
 </style>
-<link rel="stylesheet" href="/intranet.css">
+<link rel="stylesheet" href="<?=htmlspecialchars($portalAssets['intranet.css'],ENT_QUOTES,'UTF-8')?>">
 </head>
 <body>
 <noscript><p style="padding:20px">La intranet requiere JavaScript habilitado.</p></noscript>
@@ -4138,10 +4148,11 @@ const FORMS = {
     if(vals.ruc&&!errs.ruc&&!rucValido(vals.ruc))errs.ruc="El RUC no es válido.";
     const decl=form.querySelector("#empDecl");if(!decl?.checked)errs.ruc="Debes aceptar la declaración jurada.";
     if(!showErrs(form,errs))return;
-    form.dataset.sending='true';const controls=[...form.elements].map(el=>[el,el.disabled]);controls.forEach(([el])=>el.disabled=true);const progress=form.querySelector('[data-company-progress]');if(progress)progress.hidden=false;const button=form.querySelector('[type=submit]');const original=button?.textContent;if(button){button.disabled=true;button.textContent='Registrando empresa, espera un momento…';}
-    try{const result=await HOST.registerCompany({...vals,declaration:decl.checked});DB.empresas.push(result.company);render();
+    form.dataset.sending='true';const controls=[...form.elements,...document.querySelectorAll('.pz-mt [data-tab]')].map(el=>[el,el.disabled]);controls.forEach(([el])=>el.disabled=true);const progress=form.querySelector('[data-company-progress]');if(progress)progress.hidden=false;const button=form.querySelector('[type=submit]');const original=button?.textContent;if(button){button.disabled=true;button.textContent='Registrando empresa, espera un momento…';}
+    const preventLeave=event=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',preventLeave);portalSubmissionStatus('Registrando empresa. Espera un momento y no cierres la página.');
+    try{const result=await HOST.registerCompany({...vals,declaration:decl.checked});DB.empresas.push(result.company);render();portalSubmissionStatus('Empresa registrada correctamente.');
       openModal({title:"Empresa registrada",body:`<div class="alert ok">${esc(result.company.nom)} quedó pendiente de validación institucional.</div><p>Tu usuario es <b>${esc(result.username)}</b>. Entra con la contraseña que acabas de elegir.</p>`,foot:'<a class="btn" href="#/admin">Ingresar a la intranet</a>'});
-    }catch(error){toast(error.message);}finally{delete form.dataset.sending;controls.forEach(([el,disabled])=>el.disabled=disabled);if(progress)progress.hidden=true;if(button)button.textContent=original;}
+    }catch(error){toast(error.message);portalSubmissionStatus(error.message);}finally{window.removeEventListener('beforeunload',preventLeave);delete form.dataset.sending;controls.forEach(([el,disabled])=>el.disabled=disabled);if(progress)progress.hidden=true;if(button)button.textContent=original;}
   },
   empSelf(form){
     const e = myEmp(), fields = ENT.empresas.fields().filter(f => f.k !== "validada" && f.k !== "ruc"), {vals, errs} = readFields(fields, form);
@@ -7297,14 +7308,14 @@ function bindMpv(q0) {
     if(!pending||pending.signature!==signature)pending={signature,key:crypto.randomUUID(),record:null};
     busy=true;const controls=[...f.elements,...$$('.pz-mt [data-tab]')].map(el=>[el,el.disabled]);
     controls.forEach(([el])=>el.disabled=true);f.setAttribute('aria-busy','true');progress.hidden=false;progress.scrollIntoView({block:'nearest'});
-    btn.textContent='Registrando, espera un momento…';
+    btn.textContent='Registrando, espera un momento…';portalSubmissionStatus('Registrando trámite. Espera un momento y no cierres la página.');
     const preventLeave=event=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',preventLeave);
     try {
       // Cede el control para dibujar el aviso antes de iniciar la carga.
       await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
       let x=pending.record;
       if(!x){
-        const archivos = []; for (const file of files){step.textContent=`Subiendo archivos: ${archivos.length+1} de ${files.length}.`;archivos.push(await storeFile(file,'mpv'));}
+        const archivos = []; for (const file of files){step.textContent=`Subiendo archivos: ${archivos.length+1} de ${files.length}.`;portalSubmissionStatus(step.textContent);archivos.push(await storeFile(file,'mpv'));}
         const fecha = nowISO(); const rec = recepcionDe(fecha);
         const numero='',numDocumento='';
         const u = currentUser(); const nombres = jur ? v.razon.trim() : `${v.nombresP.trim()} ${v.apellidos.trim()}`;
@@ -7315,7 +7326,7 @@ function bindMpv(q0) {
         pending.record=x;
       }
       step.textContent='Guardando el trámite y preparando tu cargo. Este paso puede tardar unos segundos mientras se procesan las notificaciones.';
-      await portalSubmitExpediente(x,pending.key);
+      portalSubmissionStatus('Guardando el trámite y preparando tu cargo.');await portalSubmitExpediente(x,pending.key);portalSubmissionStatus('Trámite registrado. Ya puedes descargar tu cargo.');
       const numero=x.numero,numDocumento=x.numDocumento;
       pending=null;
       f.reset();
@@ -7324,7 +7335,7 @@ function bindMpv(q0) {
         <dl class="kv"><dt>Fecha y hora de presentación</dt><dd>${fdate(x.fecha, true)}</dd><dt>Fecha y hora de recepción</dt><dd>${fdate(x.fechaRecepcion, true)}${x.enHorario ? '' : ' <span class="badge warn">Fuera de horario: siguiente día hábil</span>'}</dd><dt>Área de destino</dt><dd>${esc(areaName(x.areaDestino))}</dd><dt>Plazo referencial</dt><dd>${c.plazos[x.tipoTramite] || 10} días hábiles</dd></dl>
         <p>Descarga y conserva tu cargo. Correo de contacto: <b>${esc(x.correo)}</b>.</p>`, foot: `<a class="btn ghost" href="${esc('#/servicios/mesa-de-partes?exp=' + numero + '&c=' + (x.cargoCod || ''))}" data-seg>Ver seguimiento</a>${cargoBtn(x)}` });
       $('[data-seg]', m.el).onclick = () => m.close();
-    } catch (err) { toast(err.message||'No se pudo confirmar el registro. Conserva los datos y vuelve a intentar el mismo envío.','err'); }
+    } catch (err) {const message=err.message||'No se pudo confirmar el registro. Conserva los datos y vuelve a intentar el mismo envío.';toast(message,'err');portalSubmissionStatus(message);}
     finally {busy=false;controls.forEach(([el,disabled])=>el.disabled=disabled);f.removeAttribute('aria-busy');progress.hidden=true;window.removeEventListener('beforeunload',preventLeave);btn.innerHTML=`${S16('send')} Registrar y obtener cargo`;}
   };
   const q = $('[data-mpvq]');
@@ -7566,7 +7577,7 @@ function bindLr2(q0) {
     const cap = checkCaptcha(f, 'cap-lr2'); if (cap) er.captcha = cap;
     if (!showErrors(f, er)) return;
     if (rateLimited('lr2', 20)) return toast('Espere unos segundos antes de registrar otro reclamo.', 'err');
-    const btn=$('[data-send]',f),progress=$('[data-lr-progress]',f);const signature=JSON.stringify([v,file?[file.name,file.size,file.lastModified]:null]);if(!pending||pending.signature!==signature)pending={signature,key:crypto.randomUUID(),record:null};busy=true;const controls=[...f.elements].map(el=>[el,el.disabled]);controls.forEach(([el])=>el.disabled=true);progress.hidden=false;progress.scrollIntoView({block:'nearest'});btn.textContent='Registrando, espera un momento…';f.setAttribute('aria-busy','true');
+    const btn=$('[data-send]',f),progress=$('[data-lr-progress]',f);const signature=JSON.stringify([v,file?[file.name,file.size,file.lastModified]:null]);if(!pending||pending.signature!==signature)pending={signature,key:crypto.randomUUID(),record:null};busy=true;const controls=[...f.elements,...$$('.pz-mt [data-tab]')].map(el=>[el,el.disabled]);controls.forEach(([el])=>el.disabled=true);progress.hidden=false;progress.scrollIntoView({block:'nearest'});btn.textContent='Registrando, espera un momento…';f.setAttribute('aria-busy','true');portalSubmissionStatus('Registrando reclamo. Espera un momento y no cierres la página.');const preventLeave=event=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',preventLeave);
     try {
       await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));let r=pending.record;if(!r){
       const adj = file ? await storeFile(file, 'rcl') : null;
@@ -7575,12 +7586,12 @@ function bindLr2(q0) {
       r = { id: uid(), codigo, fecha, tipo: v.tipo, nombres, nombresP: v.nombresP.trim(), apellidos: v.apellidos.trim(), tipoDoc: v.tipoDoc, numDoc: v.numDoc.trim(), correo: v.correo.trim(), telefono: (v.telefono || '').trim(), condicion: v.condicion, programaId: v.programaId === 'ninguno' ? '' : v.programaId, fechaHecho: v.fechaHecho, areaHecho: v.areaHecho || '',
         asunto: clamp(v.descripcion.trim().replace(/\s+/g, ' '), 80), descripcion: v.descripcion.trim(), pedido: v.pedido.trim(), adjunto: adj, estado: 'Recibido', plazoDias, vence: diasHabiles(fecha, plazoDias).due.toISOString(), responsable: { nombre: c.responsable, cargo: c.cargo, correo: c.correo }, area: '',
         historial: [{ fecha, usuario: 'portal', estado: 'Recibido', nota: `Registro desde el Libro de Reclamaciones Virtual. Responsable: ${c.responsable} (${c.cargo}).` }], notas: [], respuesta: '', notifInst: 'Pendiente', notifUser: 'Pendiente', anulado: false };
-      pending.record=r;}await portalSubmitService('reclamos',r,pending.key);pending=null;const codigo=r.codigo,fecha=r.fecha,plazoDias=r.plazoDias;
+      pending.record=r;}await portalSubmitService('reclamos',r,pending.key);portalSubmissionStatus('Reclamo registrado. Ya puedes descargar tu constancia.');pending=null;const codigo=r.codigo,fecha=r.fecha,plazoDias=r.plazoDias;
       f.reset();
       const m = modal({ title: `${v.tipo} registrado`, body: `<div class="notice ok">Tu ${esc(v.tipo.toLowerCase())} fue registrado correctamente el ${fdate(fecha, true)}.</div><p>Tu código de seguimiento es:</p><div class="code-box">${codigo}</div><p>Código de verificación: <b class="mono">${esc(r.cargoCod || 'Pendiente de actualización')}</b></p><dl class="kv" style="margin-top:12px"><dt>Responsable</dt><dd>${esc(c.responsable)} · ${esc(c.cargo)}</dd><dt>Plazo de respuesta</dt><dd>${plazoDias} días hábiles (hasta el ${fdate(r.vence)})</dd></dl><p>Puedes descargar tu constancia. Correo de contacto: <b>${esc(r.correo)}</b>. Guarda tu código para consultar el estado.</p>`, foot: `<button class="btn sec" data-print>${S16('print')} Descargar constancia (PDF)</button><button class="btn" data-ok>Aceptar</button>` });
       $('[data-ok]', m.el).onclick = m.close; $('[data-print]', m.el).onclick = () => lrPdf(r, 'constancia');
-    } catch (err) {toast(err.message||'No se pudo confirmar el registro. Conserva los datos y reintenta el mismo envío.','err');}
-    finally {busy=false;controls.forEach(([el,disabled])=>el.disabled=disabled);progress.hidden=true;f.removeAttribute('aria-busy');btn.innerHTML=`${S16('send')} Enviar reclamo`;}
+    } catch (err) {const message=err.message||'No se pudo confirmar el registro. Conserva los datos y reintenta el mismo envío.';toast(message,'err');portalSubmissionStatus(message);}
+    finally {window.removeEventListener('beforeunload',preventLeave);busy=false;controls.forEach(([el,disabled])=>el.disabled=disabled);progress.hidden=true;f.removeAttribute('aria-busy');btn.innerHTML=`${S16('send')} Enviar reclamo`;}
   };
   const q = $('[data-lrq2]');
   const show = r => { $('#lq2-r').innerHTML = r ? `<div class="pz-track" role="status"><div class="pz-track-h"><div><b class="mono">${esc(r.codigo)}</b> · ${esc(r.tipo)}<br><small>Registrado el ${fdate(r.fecha, true)}</small></div>${stBadge(r.anulado ? 'Anulado' : r.estado)}</div>${svTrack(['Recibido', 'Derivado', 'En atención', 'Atendido'], r.anulado ? 'Anulado' : r.estado, { Recibido: 0, Derivado: 1, 'En atención': 2, Atendido: 3, Cerrado: 3, Anulado: 0 })}<dl class="kv"><dt>Plazo</dt><dd>${lrSem(r)} · vence ${fdate(lrPlazo(r).due)}</dd>${r.area ? `<dt>Área que atiende</dt><dd>${esc(areaName(r.area))}</dd>` : ''}${r.respuesta ? `<dt>Respuesta</dt><dd style="white-space:pre-wrap">${esc(r.respuesta)}</dd>` : ''}</dl><ol class="pz-tl">${(r.historial || []).map(h => `<li><span>${fshort(h.fecha, true)}</span><b>${esc(h.estado)}</b></li>`).join('')}</ol><div style="margin-top:12px"><button type="button" class="btn sm sec" data-lrpdf>${S16('download')} Descargar constancia (PDF)</button></div></div>` : `<div class="notice warn" role="status">No se encontró un registro con ese código y documento. Verifique los datos de su constancia.</div>`; const b = $('[data-lrpdf]'); if (b && r) b.onclick = () => lrPdf(r, 'constancia'); };
@@ -8468,9 +8479,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   label();
 })();
 </script>
-<script src="/portal-server.js"></script>
-<script src="/intranet.js"></script>
-<script src="/academic-documents.js"></script>
-<script src="/standalone-services.js"></script>
+<script src="<?=htmlspecialchars($portalAssets['portal-server.js'],ENT_QUOTES,'UTF-8')?>"></script>
+<script src="<?=htmlspecialchars($portalAssets['intranet.js'],ENT_QUOTES,'UTF-8')?>"></script>
+<script src="<?=htmlspecialchars($portalAssets['academic-documents.js'],ENT_QUOTES,'UTF-8')?>"></script>
+<script src="<?=htmlspecialchars($portalAssets['standalone-services.js'],ENT_QUOTES,'UTF-8')?>"></script>
 </body>
 </html>

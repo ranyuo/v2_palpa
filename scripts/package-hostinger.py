@@ -17,7 +17,7 @@ commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=Tr
 if subprocess.check_output(['git', 'status', '--porcelain'], cwd=root):
     parser.error('El checkout debe estar limpio para identificar exactamente la versión empaquetada.')
 tracked = subprocess.check_output(['git', 'ls-files', '-z'], cwd=root).decode().split('\0')
-docs = {'ANALISIS-NOTIFICACIONES.md', 'NOTIFICACIONES-CORREO.md', 'HOSTINGER-INSTALACION.md', 'OPERACION-INTRANET.md', 'ALCANCE-INTRANET.md',
+docs = {'REVISION-NOTIFICACIONES.md', 'ANALISIS-NOTIFICACIONES.md', 'NOTIFICACIONES-CORREO.md', 'HOSTINGER-INSTALACION.md', 'OPERACION-INTRANET.md', 'ALCANCE-INTRANET.md',
         'ACTUALIZACION-QA-HOSTINGER.md', 'ACTUALIZACION-MEJORAS.md', 'QA-CORRECCIONES-INTRANET.md'}
 files = []
 for name in filter(None, tracked):

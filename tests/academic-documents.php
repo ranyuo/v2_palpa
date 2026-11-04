@@ -1,5 +1,7 @@
 <?php
 declare(strict_types=1);
+// Cliente independiente para no acumular cuotas entre suites distintas.
+$_SERVER['REMOTE_ADDR']='127.0.0.25';
 ob_start();
 require dirname(__DIR__).'/portal-private/bootstrap.php';
 $path=getenv('PORTAL_CONFIG_FILE');if(!$path||!str_ends_with($path,'config.test.php'))throw new RuntimeException('Solo config.test.php.');

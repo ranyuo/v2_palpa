@@ -1600,6 +1600,15 @@ a.db-kpi:hover{transform:translateY(-3px);box-shadow:var(--sh2);border-color:var
 .pz-horario.compact{padding:10px 16px}.pz-horario.compact .pz-hh{font-size:18px}
 .pz-live{font-size:13px;margin-top:4px}.pz-live.ok{color:#9ff0bd}.pz-live.off{color:#ffd59a}.pz-live b{font-size:13px;color:#fff}
 .pz-form{padding:20px}
+.pz-mpv-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,auto);gap:12px;align-items:stretch;margin:0 0 14px}
+.pz-mpv-top>*{margin:0}
+.pz-mh.compact{padding:12px 16px;gap:12px;align-items:center}.pz-mh.compact .pz-mh-ic{width:42px;height:42px;border-radius:10px}.pz-mh.compact .pz-mh-ic svg{width:22px;height:22px}
+.pz-mh.compact .pz-mh-k{font-size:11px}.pz-mh.compact h1{font-size:20px;margin:2px 0}.pz-mh.compact p{font-size:13.5px;line-height:1.4}
+.pz-horario.compact{padding:10px 16px;gap:12px;max-width:460px}.pz-horario.compact .pz-h-ic{width:40px;height:40px}.pz-horario.compact .pz-h-ic svg{width:22px;height:22px}
+.pz-horario.compact .pz-k{font-size:11px}.pz-horario.compact .pz-hh{font-size:17px}.pz-horario.compact .pz-live{font-size:12px;margin-top:2px}.pz-horario.compact .pz-live b{font-size:12px}
+@media (min-width:1000px){.pz-form .form-grid,.pz-qf .form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.pz-qf .form-grid>.full{grid-column:1/-1}.pz-form .form-grid>.w2{grid-column:span 2}}
+@media (max-width:900px){.pz-mpv-top{grid-template-columns:minmax(0,1fr)}.pz-horario.compact{max-width:none}}
+@media (max-width:760px){.pz-horario.compact{flex-direction:row;text-align:left}}
 .pz-sec-h{display:flex;align-items:center;gap:10px;margin:18px 0 10px;border-bottom:2px solid var(--line);padding-bottom:6px}
 .pz-sec-h:first-child{margin-top:0}
 .pz-sec-h span{width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
@@ -7189,7 +7198,8 @@ const MPV_ESTADOS_PUB = { Recibido: 'Recibido por Mesa de Partes', Derivado: 'De
 function horarioBox(compact) {
   const c = mpvCfg(); const now = new Date(); const r = recepcionDe(now.toISOString());
   const st = r.enHorario ? `<span class="pz-live ok">● En horario de atención: tu documento se recibe en este momento.</span>` : `<span class="pz-live off">● Fuera del horario de atención: puedes registrar tu documento; se considerará recibido el <b>${fdate(r.fecha, true)}</b>.</span>`;
-  return `<section class="pz-horario ${compact ? 'compact' : ''}" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención</span><b>${esc(c.dias)}</b><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b>${st}</div></section>`;
+  if (compact) return `<section class="pz-horario compact" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención · ${esc(c.dias)}</span><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b>${st}</div></section>`;
+  return `<section class="pz-horario" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención</span><b>${esc(c.dias)}</b><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b>${st}</div></section>`;
 }
 function mpvForm() {
   const c = mpvCfg(); const exts = c.formatos;
@@ -7203,15 +7213,15 @@ function mpvForm() {
     <div class="field full" data-jur hidden><label for="mv-rs">Razón social / nombre de la entidad <span class="req">*</span></label><input id="mv-rs" name="razon" maxlength="150"></div>
     <div class="field"><label for="mv-e">Correo electrónico (notificaciones) <span class="req">*</span></label><input id="mv-e" name="correo" type="email" maxlength="120" autocomplete="email"></div>
     <div class="field"><label for="mv-t">Teléfono / celular <span class="req">*</span></label><input id="mv-t" name="telefono" maxlength="15" inputmode="tel" autocomplete="tel"></div>
-    <div class="field full"><label for="mv-dir">Dirección (opcional)</label><input id="mv-dir" name="direccion" maxlength="160" autocomplete="street-address"></div>
+    <div class="field full w2"><label for="mv-dir">Dirección (opcional)</label><input id="mv-dir" name="direccion" maxlength="160" autocomplete="street-address"></div>
    </div>
    <div class="pz-sec-h"><span>2</span><h2>Datos del documento</h2></div><div class="form-grid">
     <div class="field"><label for="mv-tt">Tipo de documento a presentar <span class="req">*</span></label><select id="mv-tt" name="tipoTramite"><option value="">Seleccione</option>${c.tipos.map(t => `<option>${esc(t)}</option>`).join('')}</select></div>
     <div class="field"><label for="mv-ref">N.º o referencia de su documento</label><input id="mv-ref" name="docRef" maxlength="80" placeholder="Ej.: Oficio N.º 012-2026-MPP"></div>
+    <div class="field"><label for="mv-fo">N.º de folios <span class="req">*</span></label><input id="mv-fo" name="folios" type="number" min="1" max="2000" value="1"></div>
     <div class="field full"><label for="mv-ar">Área de destino <span class="req">*</span></label><select id="mv-ar" name="areaDestino">${areaOptions('', { skipMP: true })}</select><div class="hint" data-arhint>La Mesa de Partes Virtual recibe el documento y lo deriva al área seleccionada.</div></div>
     <div class="field full"><label for="mv-as">Asunto <span class="req">*</span></label><textarea id="mv-as" name="asunto" maxlength="600" style="min-height:76px" data-count></textarea><div class="hint"><span data-c>0</span>/600 caracteres</div></div>
-    <div class="field"><label for="mv-fo">N.º de folios <span class="req">*</span></label><input id="mv-fo" name="folios" type="number" min="1" max="2000" value="1"></div>
-    <div class="field"><label for="mv-ob">Observaciones (opcional)</label><input id="mv-ob" name="observaciones" maxlength="250"></div>
+    <div class="field full"><label for="mv-ob">Observaciones (opcional)</label><input id="mv-ob" name="observaciones" maxlength="250"></div>
    </div>
    <div class="pz-sec-h"><span>3</span><h2>Archivos adjuntos</h2></div>
     <div class="field"><label for="mv-x">Documento principal y anexos <span class="req">*</span></label><input id="mv-x" type="file" name="archivos" multiple accept="${exts.map(e => '.' + e).join(',')}"><div class="hint">Formatos permitidos: ${exts.map(e => e.toUpperCase()).join(', ')} · tamaño máximo ${c.maxMB} MB por archivo · hasta ${c.maxArchivos} archivos.</div><ul class="pz-files" data-files></ul></div>
@@ -7230,16 +7240,15 @@ function mpvInfo() {
   return `<section class="card cb" style="padding:20px"><h2 style="font-size:18px;margin-top:0">¿Cómo funciona?</h2><ol class="pz-steps"><li><b>Registra</b> tus datos, el tipo de documento, el área de destino y adjunta tus archivos.</li><li><b>Recibe</b> al instante tu N.º de expediente (${esc(c.prefijo)}-AAAA-NNNNNN), tu N.º de documento (DOC-AAAA-NNNNNN) y el cargo de recepción en PDF.</li><li><b>Mesa de Partes</b> deriva tu documento al área competente. Consulta las novedades en el seguimiento; el envío por correo está pendiente de habilitación.</li><li><b>Consulta</b> el estado en cualquier momento con tu N.º de expediente y tu DNI/RUC o el código de verificación.</li></ol>
    <h3>Tipos de documento admitidos y plazos referenciales</h3><div class="tbl-wrap"><table class="tbl light no-rt"><thead><tr><th>Tipo de documento</th><th class="num">Plazo (días hábiles)</th></tr></thead><tbody>${c.tipos.map(t => `<tr><td>${esc(t)}</td><td class="num">${c.plazos[t] || 10}</td></tr>`).join('')}</tbody></table></div>
    <h3>Recepción fuera del horario</h3><p>Puedes registrar documentos las 24 horas. Los presentados después de las ${fmt12(c.horaFin)}, en sábado, domingo o feriado se consideran recibidos el <b>siguiente día hábil a las ${fmt12(c.horaIni)}</b>; los presentados antes de las ${fmt12(c.horaIni)} de un día hábil, ese mismo día a las ${fmt12(c.horaIni)}. El cargo indica la fecha y hora exacta de presentación y la de recepción administrativa.</p>
+   <h3>Contacto</h3><p>✉️ <a href="mailto:${esc(c.correo)}">${esc(c.correo)}</a> · 📞 ${esc(c.telefono)} (Secretaría de Dirección) · 📍 ${esc(inst().direccion)}</p>
    <h3>Áreas receptoras</h3><div class="tbl-wrap"><table class="tbl light"><thead><tr><th>Nivel</th><th>Área / cargo / órgano</th><th>Correo institucional</th></tr></thead><tbody>${as.map(a => `<tr><td>${esc(a.nivel || '')}</td><td>${esc(a.nombre)}</td><td><a href="mailto:${esc(a.correo)}">${esc(a.correo)}</a></td></tr>`).join('')}</tbody></table></div></section>`;
 }
 R('servicios/mesa-de-partes', (path, q0) => {
   const c = mpvCfg(); const t0 = q0 && q0.get && q0.get('tab'); const cur = t0 === 'consulta' || (q0 && q0.get && q0.get('exp')) ? 'c' : t0 === 'info' ? 'i' : 'n';
-  const body = `${svNav('mesa-de-partes')}${svHead('mpv', [['file', `${c.tipos.length} tipos de documento`], ['upload', `Hasta ${c.maxArchivos} archivos de ${c.maxMB} MB`], ['shield', 'Cargo en PDF con código QR']])}
-   ${horarioBox()}
-   ${svSteps([['Registra', 'Tus datos, el documento y los archivos.'], ['Recibe tu cargo', 'N.º de expediente y cargo en PDF al instante.'], ['Derivación', 'Mesa de Partes lo envía al área competente.'], ['Consulta', 'Sigue el estado con tu N.º de expediente.']])}
+  const body = `${svNav('mesa-de-partes')}<div class="pz-mpv-top">${svHead('mpv', null, true)}${horarioBox(true)}</div>
    ${svTabs([['n', 'send', 'Nuevo trámite'], ['c', 'search', 'Consultar expediente'], ['i', 'book', 'Información']], cur)}
    <div data-pane="n" ${cur === 'n' ? '' : 'hidden'}>${mpvForm()}</div><div data-pane="c" ${cur === 'c' ? '' : 'hidden'}>${mpvConsulta()}</div><div data-pane="i" ${cur === 'i' ? '' : 'hidden'}>${mpvInfo()}</div>`;
-  const side = `<section class="side-box"><h2>Contacto</h2><div class="pad" style="font-size:13.5px">✉️ <a href="mailto:${esc(c.correo)}">${esc(c.correo)}</a><br>📞 ${esc(c.telefono)} (Secretaría de Dirección)<br>📍 ${esc(inst().direccion)}</div></section><section class="side-box"><h2>Numeración</h2><div class="pad" style="font-size:13px">Expediente: <b class="mono">${esc(c.prefijo)}-${yearNow()}-000001</b><br>Documento: <b class="mono">DOC-${yearNow()}-000001</b><br><span style="color:var(--muted)">Únicos, correlativos y reiniciados cada año.</span></div></section>`;
+  const side = null;
   const html = shell(path, { title: 'Mesa de Partes Virtual', desc: `Mesa de Partes Virtual del ${inst().nombre}: registro de documentos, cargo de recepción y seguimiento de expedientes.`, crumbs: [['Servicios', '#/servicios'], ['Mesa de Partes Virtual']], banner: { kicker: 'Servicios en línea', title: 'Mesa de Partes Virtual', text: 'Tus trámites en línea, con cargo de recepción inmediato' }, side, body });
   return { html, after: () => bindMpv(q0) };
 });
@@ -8174,9 +8183,9 @@ function svNav(active) {
   return `<nav class="pz-svnav" aria-label="Servicios en línea"><a href="#/servicios" class="pz-svnav-h ${active === '' ? 'on' : ''}" title="Servicios en línea" aria-label="Servicios en línea">${sic('home', 16)}</a>${it.map(([s, l, i]) => `<a href="#/servicios/${s}" class="${s === active ? 'on' : ''}" ${s === active ? 'aria-current="page"' : ''}>${sic(i, 16)}<span>${l}</span></a>`).join('')}</nav>`;
 }
 /* cabecera del módulo */
-function svHead(k, chips) {
+function svHead(k, chips, compact) {
   const m = SV_MODS[k];
-  return `<header class="pz-mh t-${m.tone}"><span class="pz-mh-ic">${sic(m.icon, 30)}</span><div class="pz-mh-tx"><span class="pz-mh-k">Servicios en línea · ${esc(inst().nombreCorto)}</span><h1>${esc(m.title)}</h1><p>${esc(m.text)}</p>${chips && chips.length ? `<ul class="pz-mh-ch">${chips.map(([i, t]) => `<li>${sic(i, 15)}<span>${t}</span></li>`).join('')}</ul>` : ''}</div></header>`;
+  return `<header class="pz-mh t-${m.tone}${compact ? ' compact' : ''}"><span class="pz-mh-ic">${sic(m.icon, 30)}</span><div class="pz-mh-tx"><span class="pz-mh-k">Servicios en línea · ${esc(inst().nombreCorto)}</span><h1>${esc(m.title)}</h1><p>${esc(m.text)}</p>${chips && chips.length ? `<ul class="pz-mh-ch">${chips.map(([i, t]) => `<li>${sic(i, 15)}<span>${t}</span></li>`).join('')}</ul>` : ''}</div></header>`;
 }
 /* pasos del servicio */
 const svSteps = steps => `<ol class="pz-mst">${steps.map(([t, d], i) => `<li><span>${i + 1}</span><div><b>${t}</b><small>${d}</small></div></li>`).join('')}</ol>`;

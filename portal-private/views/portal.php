@@ -7237,6 +7237,7 @@ function mpvForm() {
     <div class="field"><label class="check"><input type="checkbox" name="declaro"> <span>Declaro que la información y los documentos presentados son veraces (principio de presunción de veracidad, Ley N.º 27444) y acepto ser notificado al correo electrónico registrado. <span class="req">*</span></span></label></div>
     <div class="field"><label class="check"><input type="checkbox" name="acepto"> <span>Acepto la <a href="#/politica-de-privacidad" target="_blank">Política de Privacidad</a> y el tratamiento de mis datos personales (Ley N.º 29733). <span class="req">*</span></span></label></div>
     ${captchaHTML('cap-mpv')}
+    <div class="mpv-progress" data-mpv-progress role="status" aria-live="polite" aria-atomic="true" hidden><span class="mpv-spinner" aria-hidden="true"></span><div><strong>Registrando trámite, espera un momento…</strong><p data-mpv-step></p><small>No cierres esta página ni vuelvas a enviar el formulario.</small></div></div>
     <div class="pz-actions"><button type="reset" class="btn ghost">Limpiar</button><button class="btn" data-send>${S16('send')} Registrar y obtener cargo</button></div>
   </form>`;
 }
@@ -7264,7 +7265,7 @@ function bindMpv(q0) {
   const c = mpvCfg();
   const showTab = k => { $$('.pz-mt [data-tab]').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === k)); $$('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== k); };
   $$('.pz-mt [data-tab]').forEach(b => b.onclick = () => showTab(b.dataset.tab));
-  const f = $('[data-mpv]');
+  const f = $('[data-mpv]'); let busy=false,pending=null;
   const syncTipo = () => { const jur = f.tipoPersona.value !== 'Persona natural'; $$('[data-nat]', f).forEach(x => x.hidden = jur); $$('[data-jur]', f).forEach(x => x.hidden = !jur); if (jur && f.tipoDoc.value === 'DNI') f.tipoDoc.value = 'RUC'; if (!jur && f.tipoDoc.value === 'RUC') f.tipoDoc.value = 'DNI'; };
   f.tipoPersona.onchange = syncTipo;
   f.areaDestino.onchange = () => { const a = areaOf(f.areaDestino.value); $('[data-arhint]', f).innerHTML = a ? `Responsable: <b>${esc(a.resp)}</b> · <a href="mailto:${esc(a.correo)}">${esc(a.correo)}</a>` : 'La Mesa de Partes Virtual recibe el documento y lo deriva al área seleccionada.'; };
@@ -7273,7 +7274,7 @@ function bindMpv(q0) {
   f.archivos.onchange = listFiles;
   f.addEventListener('reset', () => setTimeout(() => { $('[data-files]', f).innerHTML = ''; $$('[data-c]', f).forEach(x => x.textContent = '0'); syncTipo(); }, 0));
   f.onsubmit = async e => {
-    e.preventDefault(); const v = Object.fromEntries(new FormData(f)); const er = {}; const jur = v.tipoPersona !== 'Persona natural';
+    e.preventDefault(); if(busy)return; const v = Object.fromEntries(new FormData(f)); const er = {}; const jur = v.tipoPersona !== 'Persona natural';
     const de = validDoc(v.tipoDoc, v.numDoc); if (!v.numDoc) er.numDoc = 'Ingrese el número de documento.'; else if (de) er.numDoc = de;
     if (jur) { if (String(v.razon).trim().length < 3) er.razon = 'Ingrese la razón social o el nombre de la entidad.'; }
     else { if (String(v.nombresP).trim().length < 2) er.nombresP = 'Ingrese sus nombres.'; if (String(v.apellidos).trim().length < 2) er.apellidos = 'Ingrese sus apellidos.'; }
@@ -7292,30 +7293,40 @@ function bindMpv(q0) {
     const cap = checkCaptcha(f, 'cap-mpv'); if (cap) er.captcha = cap;
     if (!showErrors(f, er)) return;
     if (rateLimited('mpv', 20)) return toast('Espere unos segundos antes de registrar otro documento.', 'err');
-    const btn = $('[data-send]', f); btn.disabled = true; btn.textContent = 'Registrando…';
+    const btn = $('[data-send]', f),progress=$('[data-mpv-progress]',f),step=$('[data-mpv-step]',f);
+    const signature=JSON.stringify([v,files.map(file=>[file.name,file.size,file.lastModified])]);
+    if(!pending||pending.signature!==signature)pending={signature,key:crypto.randomUUID(),record:null};
+    busy=true;const controls=[...f.elements,...$$('.pz-mt [data-tab]')].map(el=>[el,el.disabled]);
+    controls.forEach(([el])=>el.disabled=true);f.setAttribute('aria-busy','true');progress.hidden=false;progress.scrollIntoView({block:'nearest'});
+    btn.textContent='Registrando, espera un momento…';
+    const preventLeave=event=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',preventLeave);
     try {
-      const archivos = []; for (const x of files) archivos.push(await storeFile(x, 'mpv'));
-      const fecha = nowISO(); const rec = recepcionDe(fecha); const y = String(new Date(fecha).getFullYear());
-      const C = DB.config.contadores; C.MPV[y] = (C.MPV[y] || 0) + 1; C.DOC[y] = (C.DOC[y] || 0) + 1;
-      let numero = `${c.prefijo}-${y}-${pad(C.MPV[y], c.digitos||6)}`, numDocumento = `DOC-${y}-${pad(C.DOC[y], 6)}`;
-      const u = currentUser(); const nombres = jur ? v.razon.trim() : `${v.nombresP.trim()} ${v.apellidos.trim()}`;
-      const x = { id: uid(), numero, numDocumento, fecha, fechaRecepcion: rec.fecha.toISOString(), enHorario: rec.enHorario, usuarioRegistro: u ? `${u.usuario} (${u.nombre})` : `Ciudadano – portal web (${v.tipoDoc} ${v.numDoc.trim()})`, canal: 'Mesa de Partes Virtual',
-        tipoPersona: v.tipoPersona, nombres, nombresP: jur ? '' : v.nombresP.trim(), apellidos: jur ? '' : v.apellidos.trim(), tipoDoc: v.tipoDoc, numDoc: v.numDoc.trim(), correo: v.correo.trim(), telefono: v.telefono.trim(), direccion: (v.direccion || '').trim(),
-        tipoTramite: v.tipoTramite, docRef: (v.docRef || '').trim(), asunto: v.asunto.trim(), folios: +v.folios, observaciones: (v.observaciones || '').trim(), archivos, archivo: archivos[0], areaDestino: v.areaDestino, area: 'MP', estado: 'Recibido',
-        historial: [{ fecha, usuario: 'portal', estado: 'Recibido', nota: `Presentado por la Mesa de Partes Virtual. Recepción administrativa: ${fshort(rec.fecha, true)}${rec.enHorario ? '' : ' (fuera del horario de atención)'}. Área de destino: ${areaName(v.areaDestino)}.` }] };
-      expCargoCod(x); coll('expedientes').unshift(x);
-      if (!saveDB()) return;
-      numero = x.numero; numDocumento = x.numDocumento;
-      // Las dos notificaciones se generan en el servidor junto al registro.
-      audit('Registro', 'Mesa de partes', numero, `${x.tipoTramite} · destino ${x.areaDestino} · ${archivos.length} archivo(s)`); saveDB();
+      // Cede el control para dibujar el aviso antes de iniciar la carga.
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      let x=pending.record;
+      if(!x){
+        const archivos = []; for (const file of files){step.textContent=`Subiendo archivos: ${archivos.length+1} de ${files.length}.`;archivos.push(await storeFile(file,'mpv'));}
+        const fecha = nowISO(); const rec = recepcionDe(fecha);
+        const numero='',numDocumento='';
+        const u = currentUser(); const nombres = jur ? v.razon.trim() : `${v.nombresP.trim()} ${v.apellidos.trim()}`;
+        x = { id: uid(), numero, numDocumento, fecha, fechaRecepcion: rec.fecha.toISOString(), enHorario: rec.enHorario, usuarioRegistro: u ? `${u.usuario} (${u.nombre})` : `Ciudadano – portal web (${v.tipoDoc} ${v.numDoc.trim()})`, canal: 'Mesa de Partes Virtual',
+          tipoPersona: v.tipoPersona, nombres, nombresP: jur ? '' : v.nombresP.trim(), apellidos: jur ? '' : v.apellidos.trim(), tipoDoc: v.tipoDoc, numDoc: v.numDoc.trim(), correo: v.correo.trim(), telefono: v.telefono.trim(), direccion: (v.direccion || '').trim(),
+          tipoTramite: v.tipoTramite, docRef: (v.docRef || '').trim(), asunto: v.asunto.trim(), folios: +v.folios, observaciones: (v.observaciones || '').trim(), archivos, archivo: archivos[0], areaDestino: v.areaDestino, area: 'MP', estado: 'Recibido',
+          historial: [{ fecha, usuario: 'portal', estado: 'Recibido', nota: `Presentado por la Mesa de Partes Virtual. Recepción administrativa: ${fshort(rec.fecha, true)}${rec.enHorario ? '' : ' (fuera del horario de atención)'}. Área de destino: ${areaName(v.areaDestino)}.` }] };
+        pending.record=x;
+      }
+      step.textContent='Guardando el trámite y preparando tu cargo. Este paso puede tardar unos segundos mientras se procesan las notificaciones.';
+      await portalSubmitExpediente(x,pending.key);
+      const numero=x.numero,numDocumento=x.numDocumento;
+      pending=null;
       f.reset();
       const m = modal({ title: 'Documento registrado', size: 'lg', body: `<div class="notice ok">Tu documento fue <b>recibido por la Mesa de Partes Virtual</b>.</div>
         <div class="pz-codes"><div><span>N.º de expediente</span><b class="mono">${esc(numero)}</b></div><div><span>N.º de documento</span><b class="mono">${esc(numDocumento)}</b></div><div><span>Código de verificación</span><b class="mono">${esc(x.cargoCod || '—')}</b></div></div>
-        <dl class="kv"><dt>Fecha y hora de presentación</dt><dd>${fdate(fecha, true)}</dd><dt>Fecha y hora de recepción</dt><dd>${fdate(rec.fecha, true)}${rec.enHorario ? '' : ' <span class="badge warn">Fuera de horario: siguiente día hábil</span>'}</dd><dt>Área de destino</dt><dd>${esc(areaName(x.areaDestino))}</dd><dt>Plazo referencial</dt><dd>${c.plazos[x.tipoTramite] || 10} días hábiles</dd></dl>
+        <dl class="kv"><dt>Fecha y hora de presentación</dt><dd>${fdate(x.fecha, true)}</dd><dt>Fecha y hora de recepción</dt><dd>${fdate(x.fechaRecepcion, true)}${x.enHorario ? '' : ' <span class="badge warn">Fuera de horario: siguiente día hábil</span>'}</dd><dt>Área de destino</dt><dd>${esc(areaName(x.areaDestino))}</dd><dt>Plazo referencial</dt><dd>${c.plazos[x.tipoTramite] || 10} días hábiles</dd></dl>
         <p>Descarga y conserva tu cargo. Correo de contacto: <b>${esc(x.correo)}</b>.</p>`, foot: `<a class="btn ghost" href="${esc('#/servicios/mesa-de-partes?exp=' + numero + '&c=' + (x.cargoCod || ''))}" data-seg>Ver seguimiento</a>${cargoBtn(x)}` });
       $('[data-seg]', m.el).onclick = () => m.close();
-    } catch (err) { console.error(err); toast('No se pudo registrar el documento. Intente nuevamente.', 'err'); }
-    finally { btn.disabled = false; btn.innerHTML = `${S16('send')} Registrar y obtener cargo`; }
+    } catch (err) { toast(err.message||'No se pudo confirmar el registro. Conserva los datos y vuelve a intentar el mismo envío.','err'); }
+    finally {busy=false;controls.forEach(([el,disabled])=>el.disabled=disabled);f.removeAttribute('aria-busy');progress.hidden=true;window.removeEventListener('beforeunload',preventLeave);btn.innerHTML=`${S16('send')} Registrar y obtener cargo`;}
   };
   const q = $('[data-mpvq]');
   const findExp = (n, d) => portalLookup('expedientes', String(n || '').trim().toUpperCase(), String(d || '').trim());

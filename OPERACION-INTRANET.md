@@ -141,3 +141,20 @@ El número de documento `DOC-AÑO-NÚMERO` conserva su secuencia independiente.
 
 Pruebas en base desechable: `php tests/intranet.php`, `php tests/numbering.php` y
 `node tests/browser-numbering.cjs`, con la configuración y el servidor de pruebas.
+
+## Estado al enviar un trámite
+
+Durante el envío de Mesa de Partes se muestra “Registrando trámite, espera un
+momento…” y la etapa actual: carga de archivos o preparación del cargo. El
+formulario queda bloqueado para evitar envíos repetidos y la interfaz sigue
+respondiendo mientras espera al servidor, incluido su intento inicial de correo.
+Al terminar aparece el cargo y se habilitan nuevamente los controles.
+
+Si se pierde la respuesta, los datos permanecen en pantalla. Reintentar el mismo
+formulario en esa página reutiliza la solicitud y recupera el cargo si ya estaba
+registrado, sin crear otro expediente. El indicador no estima porcentajes ni
+asegura un tiempo de respuesta de Gmail.
+
+La regresión `node tests/browser-submission-progress.cjs` sobre el servidor de
+pruebas simula espera, respuesta perdida y reintento, y comprueba el indicador,
+el bloqueo de duplicados y la recuperación del cargo existente.

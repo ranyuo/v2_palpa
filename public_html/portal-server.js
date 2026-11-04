@@ -15,6 +15,23 @@ function portalRequest(method,url,body) {
   if(xhr.status<200||xhr.status>=300)throw new Error(result.message||(xhr.status===409?'Otra persona guardó cambios. Copia tu trabajo y recarga la página.':'No se pudo conectar con el servidor.'));
   return result;
 }
+// El registro público no debe bloquear el navegador mientras carga archivos o espera SMTP.
+async function portalSubmitExpediente(record,key){
+  let response,result;
+  try{
+    response=await fetch(portalURL('/api/solicitudes/expedientes'),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':portalBootstrap.csrf},body:JSON.stringify({record,idempotency_key:key,proof:portalProofs.expedientes})});
+    result=await response.json();
+  }catch{throw new Error('No se pudo confirmar la respuesta del servidor. Conserva los datos y vuelve a intentar el mismo envío para recuperar tu cargo.');}
+  if(!response.ok)throw new Error(result.message||'No se pudo registrar el trámite. Revisa los datos e inténtalo nuevamente.');
+  if(!result.record?.id||!result.record?.numero)throw new Error('La respuesta no incluyó el cargo. Conserva los datos y vuelve a intentar el mismo envío.');
+  Object.assign(record,result.record);Object.defineProperty(record,'__serverSaved',{value:true,configurable:true});
+  portalKnown.add('expedientes:'+record.id);
+  const existing=DB.expedientes.find(r=>r.id===record.id);if(existing)Object.assign(existing,result.record);else DB.expedientes.unshift(record);
+  if(!portalBaseline.expedientes.some(r=>r.id===record.id))portalBaseline.expedientes.unshift(structuredClone(result.record));
+  RATE.mpv=Date.now();
+  if(currentUser()){portalRevision=result.revision;if(result.counters){DB.config.contadores=structuredClone(result.counters);portalBaseline.config.contadores=structuredClone(result.counters);}}
+  return result.record;
+}
 function portalMerge(target,source) {
   for(const key of Object.keys(target))if(!(key in source))delete target[key];
   for(const [key,value] of Object.entries(source)){

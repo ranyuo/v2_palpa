@@ -24,6 +24,7 @@ require_once __DIR__.'/Rules.php';
 require_once __DIR__.'/Services.php';
 require_once __DIR__.'/Academic.php';
 require_once __DIR__.'/Mail.php';
+require_once __DIR__.'/SmtpSettings.php';
 
 final class PortalApp
 {
@@ -59,13 +60,27 @@ final class PortalApp
 
     private ?PDO $connection = null;
 
-    public function __construct(private readonly array $config) {}
+    public function __construct(private readonly array $config,private readonly ?string $configFile=null) {}
+
+    private function smtpSettings(): SmtpSettings
+    {return new SmtpSettings($this->config,$this->configFile);}
+
+    public function smtpForm(): array
+    {$this->requireAdmin();return $this->smtpSettings()->view();}
+
+    public function saveSmtp(array $input): array
+    {
+        $this->requireAdmin();$this->rate('smtp-settings',20,60);
+        $result=$this->smtpSettings()->save($input);
+        PortalAudit::write($this,'Configurar correo SMTP','Configuración','SMTP');
+        return $result;
+    }
 
     public function processMail(int $limit=10,?string $recordId=null): array
-    {return (new PortalMail($this->config['smtp']??[]))->process($this->db(),$limit,$recordId);}
+    {return (new PortalMail($this->smtpSettings()->read()))->process($this->db(),$limit,$recordId);}
 
     public function mailStatus(): array
-    {return (new PortalMail($this->config['smtp']??[]))->status($this);}
+    {$this->requireAdmin();return (new PortalMail($this->smtpSettings()->read()))->status($this);}
 
     public function db(): PDO
     {

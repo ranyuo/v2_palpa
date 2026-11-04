@@ -5,6 +5,9 @@
 /portal-private/.backups/
 /portal-private/*.lock
 /portal-private/*.log
+/portal-private/.smtp-settings.json
+/portal-private/.smtp-settings.json.lock
+/portal-private/.smtp-*
 /tests/.results/
 
 # Evidencias y paquetes generados: conservar fuera del código fuente.

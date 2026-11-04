@@ -59,7 +59,7 @@ try{
  for($i=0;$i<100&&!is_file($portFile);$i++)usleep(50000);
  if(!is_file($portFile))throw new RuntimeException('STARTTLS local no inició.');
  $smtp=[...$smtp,'port'=>(int)file_get_contents($portFile),'encryption'=>'tls'];
- $live=new PortalApp([...$config,'smtp'=>$smtp]);setting('mesa-nueva@example.test');$immediate=$live->submit('expedientes',input());$iid=$immediate['record']['id'];
+ $live=new PortalApp([...$config,'smtp'=>['ca_file'=>$cert]],$dir.'/config.test.php');$live->saveSmtp(array_intersect_key([...$smtp,'from_name'=>'Palpa QA'],array_flip(['enabled','host','port','encryption','username','password','from_email','from_name'])));setting('mesa-nueva@example.test');$immediate=$live->submit('expedientes',input());$iid=$immediate['record']['id'];
  check($immediate['status']===201,'Registro con SMTP habilitado se confirma correctamente');
  $q->execute([$iid]);check(array_unique(array_column($q->fetchAll(),'status'))===['Enviado'],'Registro entrega ambos mensajes con STARTTLS verificado después del commit');
  $down=new PortalApp([...$config,'smtp'=>[...$smtp,'password'=>'incorrecta']]);$accepted=$down->submit('expedientes',input());$aid=$accepted['record']['id'];

@@ -28,7 +28,7 @@ function portal_app(): PortalApp
     }
     $_SESSION['last_seen'] = time();
     $_SESSION['csrf'] ??= bin2hex(random_bytes(32));
-    return new PortalApp($config);
+    return new PortalApp($config, realpath($path) ?: $path);
 }
 
 function portal_headers(): void

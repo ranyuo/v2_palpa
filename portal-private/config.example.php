@@ -9,6 +9,8 @@ return [
     'install_key' => '',
     'secure_cookies' => true, // HTTPS en Hostinger. Usa false únicamente para pruebas locales HTTP.
     'timezone' => 'America/Lima',
+    // Alternativa al formulario Configuración → Configurar correo notificador (SMTP).
+    // El formulario guarda ajustes cifrados que tienen prioridad sobre este bloque.
     // Credenciales privadas: nunca añadir este bloque a la configuración visible del navegador.
     // Activa solo después de reemplazar la contraseña de aplicación expuesta y configurar el cron.
     'smtp' => [

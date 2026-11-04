@@ -115,8 +115,10 @@ la configuración. Este campo corresponde al destinatario institucional, no al
 remitente `notificaciones@proyectos.pe` ni al correo que registra el solicitante.
 El envío de la confirmación y del aviso inicial se implementa mediante una cola
 SMTP privada. Consulta [Notificaciones por correo](NOTIFICACIONES-CORREO.md) para
-habilitar Gmail Workspace, configurar los reintentos y probar la entrega. Guardar
-el destinatario por sí solo no activa SMTP.
+habilitar Gmail Workspace desde **Configurar correo notificador (SMTP)**,
+configurar los reintentos y probar la entrega. En ese formulario puedes guardar
+el remitente y la contraseña de aplicación. Guardar únicamente el destinatario
+de Mesa de Partes no activa SMTP.
 
 Para validar el guardado, la sincronización entre pantallas y los permisos, ejecuta
 `node tests/browser-mail-settings.cjs` después de `tests/intranet.php`, con el servidor

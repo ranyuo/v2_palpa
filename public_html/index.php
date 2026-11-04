@@ -32,6 +32,8 @@ try {
         if ($route === 'api/visitas' && $method === 'POST') portal_json($app->track($input));
         if ($route === 'api/portal' && $method === 'GET') portal_json($app->bootstrap());
         if ($route === 'api/notificaciones' && $method === 'GET') portal_json($app->mailStatus());
+        if ($route === 'api/smtp' && $method === 'GET') portal_json($app->smtpForm());
+        if ($route === 'api/smtp' && $method === 'PUT') portal_json($app->saveSmtp($input));
         if ($route === 'api/notificaciones/reintentar' && $method === 'POST') portal_json(PortalMail::retry($app,$input));
         if ($route === 'api/portal' && $method === 'PUT') portal_json($app->save($input));
         if ($route === 'api/session' && $method === 'POST') portal_json($app->login($input));

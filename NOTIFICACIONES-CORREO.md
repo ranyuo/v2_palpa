@@ -22,25 +22,38 @@ receptor afecta a los nuevos registros, no redirige mensajes ya encolados.
 3. Revoca la contraseña de aplicación que se compartió en la captura. Genera una
    nueva desde la cuenta **notificaciones@proyectos.pe**. No uses la contraseña
    normal de Google ni publiques la contraseña de aplicación en Git o en el chat.
-4. Copia el bloque `smtp` de `portal-private/config.example.php` a tu configuración
-   privada. Conserva los datos de base, `install_key` y demás valores actuales.
-   Configura `enabled` como `true`. Usa:
+4. Entra como administrador a **Configuración de la intranet → Configurar correo
+   notificador (SMTP)**. Pulsa **Usar Gmail Workspace**, introduce la nueva contraseña
+   de aplicación, marca **Activar envío de notificaciones por correo** y pulsa
+   **Guardar configuración SMTP**. El formulario contiene:
 
-   | Parámetro | Valor |
+   | Campo | Valor para Gmail Workspace |
    | --- | --- |
-   | `host` | `smtp.gmail.com` |
-   | `port` | `587` (entero) |
-   | `encryption` | `tls` (STARTTLS) |
-   | `username` | `notificaciones@proyectos.pe` |
-   | `from_email` | `notificaciones@proyectos.pe` |
-   | `from_name` | Nombre visible de la institución |
-   | `password` | Nueva contraseña de aplicación, sin los espacios de presentación |
+   | Servidor SMTP | `smtp.gmail.com` |
+   | Puerto | `587` |
+   | Seguridad | STARTTLS |
+   | Correo de acceso SMTP | `notificaciones@proyectos.pe` |
+   | Correo remitente | `notificaciones@proyectos.pe` |
+   | Nombre visible | Nombre de la institución |
+   | Contraseña | Nueva contraseña de aplicación, sin espacios de presentación |
 
-   El ejemplo lee `PALPA_SMTP_PASSWORD` del entorno. Si tu plan no permite inyectar
-   esa variable tanto en PHP web como en cron, asigna la nueva contraseña al campo
-   `password` **solo en `portal-private/config.php`**, fuera de `public_html/` y
-   excluido de Git. No se introduce desde la interfaz ni se entrega al navegador.
-   Aplica permisos privados de lectura compatibles con el usuario PHP de tu plan.
+   La contraseña no vuelve al navegador: el campo queda vacío al guardar. Dejarlo
+   vacío conserva la contraseña anterior si se mantienen el servidor y el usuario.
+   Para cambiar de servidor o de cuenta y activar el servicio debes introducir
+   una nueva contraseña. Desmarcar la activación pausa los envíos y conserva la cola.
+
+   No necesitas editar `config.php` para configurar SMTP. El formulario guarda un
+   archivo privado `.smtp-settings.json` al lado del archivo de configuración de
+   la aplicación, cifrado con AES-256-GCM y permisos 0600. La clave se deriva de
+   `install_key`: conserva esa clave y el archivo cifrado al actualizar o trasladar
+   la instalación. Cambiar o perder la clave impide leer los ajustes guardados.
+   La carpeta privada debe permitir escritura al usuario PHP. El cron y la web deben
+   usar el mismo `config.php` (o el mismo `PORTAL_CONFIG_FILE`).
+
+   El bloque `smtp` de `config.php` sigue siendo una alternativa para despliegues
+   administrados; los ajustes guardados desde el formulario tienen prioridad.
+   Si eliges esa alternativa, inyecta `PALPA_SMTP_PASSWORD` tanto en PHP web como
+   en cron, o guarda la contraseña únicamente en el archivo privado excluido de Git.
 5. En hPanel, configura una tarea cron cada minuto con el ejecutable PHP 8.2 o
    posterior de tu plan y la ruta absoluta de `portal-private/mail-worker.php`.
    Ejemplo orientativo (sustituye usuario, dominio y ejecutable reales):
@@ -63,7 +76,7 @@ fijados de PHPMailer 7.1.0 y su licencia. No copies archivos de `tests/` al host
 ## Probar con tu instalación
 
 1. Entra como administrador y revisa el destinatario institucional en Configuración.
-2. En el panel **Notificaciones de trámites**, comprueba el remitente y el estado
+2. En el formulario SMTP y el panel **Notificaciones de trámites**, comprueba el remitente y el estado
    de configuración SMTP. «Habilitado» confirma que hay configuración; no prueba
    que Google acepte las credenciales ni que el cron se esté ejecutando.
 3. Presenta un trámite de prueba con un correo bajo tu control y un adjunto de
@@ -99,9 +112,14 @@ Solo con una base desechable `_test` y `PORTAL_CONFIG_FILE` terminado en
 
 ```sh
 PORTAL_CONFIG_FILE=/ruta/config.test.php php tests/intranet.php
+PORTAL_CONFIG_FILE=/ruta/config.test.php php tests/smtp-settings.php
 PORTAL_CONFIG_FILE=/ruta/config.test.php php tests/mail.php
 PORTAL_BASE_URL=http://127.0.0.1:8084 node tests/browser-mail-settings.cjs
 ```
+
+`tests/smtp-settings.php` prueba el cifrado, los permisos y la conservación de la contraseña.
+`tests/browser-smtp-form.cjs` prueba el formulario y restaura el archivo privado al terminar;
+requiere `PORTAL_CONFIG_FILE` y `PORTAL_BASE_URL` de pruebas.
 
 `tests/mail.php` requiere Python 3 y el ejecutable OpenSSL. Inicia un SMTP local con
 un certificado de prueba confiado explícitamente para ese servidor, usa credenciales

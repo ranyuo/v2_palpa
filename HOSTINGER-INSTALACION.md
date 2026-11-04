@@ -58,7 +58,7 @@ Comprueba que `/` muestre el inicio de sesión, entra a la intranet y revisa los
 
 Completa programas, unidades, módulos, ambientes, periodos, alumnos, responsables, áreas y usuarios. Revisa los permisos y vínculos de cada cuenta. La carga inicial conserva la identidad verificada de Palpa; no contiene estudiantes, notas ni expedientes inventados.
 
-Los formularios de recepción y seguimiento funcionan en la aplicación. El envío de correo requiere una configuración posterior; no se incluye una cuenta SMTP ni se afirma que las notificaciones de correo estén habilitadas.
+Los formularios de recepción y seguimiento funcionan en la aplicación. El registro de trámites incluye notificaciones por SMTP, deshabilitadas hasta configurar las credenciales privadas y el cron. Sigue [NOTIFICACIONES-CORREO.md](NOTIFICACIONES-CORREO.md) para habilitar Gmail Workspace y comprobar ambos destinatarios.
 
 Si se necesitan adjuntos grandes, ajusta los límites PHP de subida y de POST según el tamaño admitido por la aplicación y el plan, y verifica una carga real antes de habilitar el servicio institucional.
 

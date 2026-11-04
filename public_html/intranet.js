@@ -45,11 +45,21 @@ CUSTOM.dashboard=function(){
  return {html:body};
 };
 // Configurar la aplicación sin herramientas de publicación del sitio institucional.
-CUSTOM.config=()=>singletonForm({title:'Configuración de la intranet',icon:'gear',sub:'Identidad de la aplicación y contacto para los servicios complementarios.',
- get:()=>({nombre:inst().nombre,nombreCorto:inst().nombreCorto,telefono:inst().telefono,correo:inst().correo,direccion:inst().direccion,horario:inst().horario,correoReclamos:DB.config.correoReclamos||''}),
- fields:[{n:'nombre',l:'Nombre de la institución',req:true,full:true},{n:'nombreCorto',l:'Nombre corto',req:true},{n:'telefono',l:'Teléfono'},{n:'correo',l:'Correo de contacto',t:'email',req:true},{n:'direccion',l:'Dirección',full:true},{n:'horario',l:'Horario de atención',full:true},{n:'correoReclamos',l:'Correo responsable de reclamos',t:'email'}],
- onSave:(w)=>{for(const key of ['nombre','nombreCorto','telefono','correo','direccion','horario'])DB.config.inst[key]=w[key];DB.config.correoReclamos=w.correoReclamos;DB.config.lr=DB.config.lr||{};DB.config.lr.correo=w.correoReclamos;}
-});
+CUSTOM.config=()=>{const out=singletonForm({title:'Configuración de la intranet',icon:'gear',sub:'Identidad de la aplicación y contacto para los servicios complementarios.',
+ get:()=>({nombre:inst().nombre,nombreCorto:inst().nombreCorto,telefono:inst().telefono,correo:inst().correo,direccion:inst().direccion,horario:inst().horario,correoMesaPartes:DB.config.mpv.correo,correoReclamos:DB.config.correoReclamos||''}),
+ fields:[{n:'nombre',l:'Nombre de la institución',req:true,full:true},{n:'nombreCorto',l:'Nombre corto',req:true},{n:'telefono',l:'Teléfono'},{n:'correo',l:'Correo de contacto',t:'email',req:true},{n:'direccion',l:'Dirección',full:true},{n:'horario',l:'Horario de atención',full:true},{n:'correoMesaPartes',l:'Correo receptor de Mesa de Partes',t:'email',req:true,max:254,hint:'Destino de los avisos de nuevos trámites. Es el mismo correo de la configuración de Mesa de Partes.'},{n:'correoReclamos',l:'Correo responsable de reclamos',t:'email'}],
+ extra:'<section class="panel"><h2>Notificaciones de trámites</h2><div class="pb" data-mail-panel>Cargando estado del correo…</div></section>',
+ onSave:(w,er)=>{if(Object.keys(er).length)return;for(const key of ['nombre','nombreCorto','telefono','correo','direccion','horario'])DB.config.inst[key]=w[key];DB.config.mpv.correo=w.correoMesaPartes.trim();DB.config.correoReclamos=w.correoReclamos;DB.config.lr=DB.config.lr||{};DB.config.lr.correo=w.correoReclamos;}
+});const after=out.after;out.after=()=>{after();intranetMailPanel();};return out;};
+
+function intranetMailPanel(){
+ const panel=document.querySelector('[data-mail-panel]');if(!panel)return;
+ try{const info=portalRequest('GET','/api/notificaciones');
+  panel.innerHTML=`<p>Remitente central: <b>${esc(info.from)}</b>.</p><p>${info.configured?'SMTP habilitado. Los trámites generan una confirmación al solicitante y un aviso a Mesa de Partes.':'SMTP pendiente de configuración privada. Los avisos quedan en cola hasta habilitar el envío.'}</p><p>El estado «Enviado» indica aceptación por el servidor de correo; revise también la bandeja de spam del destinatario.</p><button type="button" class="btn sec sm" data-mail-refresh>Actualizar estado</button><div class="tbl-wrap"><table class="tbl light"><thead><tr><th>Expediente</th><th>Destinatario</th><th>Estado</th><th>Intentos</th><th>Detalle</th></tr></thead><tbody>${info.messages.map(m=>`<tr><td>${esc(m.reference)}</td><td>${esc(m.recipient)}</td><td>${esc(m.status)}</td><td>${+m.attempts}</td><td>${esc(m.last_error||'')}${m.status==='Error'?` <button type="button" class="btn sm" data-mail-retry="${esc(m.id)}">Reintentar</button>`:''}</td></tr>`).join('')||'<tr><td colspan="5">No hay notificaciones de trámites registradas.</td></tr>'}</tbody></table></div>`;
+  panel.querySelector('[data-mail-refresh]').onclick=intranetMailPanel;
+  panel.querySelectorAll('[data-mail-retry]').forEach(button=>{button.onclick=()=>{try{portalRequest('POST','/api/notificaciones/reintentar',{id:button.dataset.mailRetry});intranetMailPanel();toast('Notificación en cola. Se procesará en la próxima ejecución del correo.','ok');}catch(error){toast(error.message,'err');}};});
+ }catch(error){panel.textContent='No se pudo consultar el correo. Verifica que se haya ejecutado la actualización de la base.';}
+}
 // El catálogo de programas es soporte académico, sin perfiles promocionales ni brochures del sitio.
 SPECS.programas.sub='Programas, duración y organización curricular para los módulos académicos.';
 SPECS.programas.cols=SPECS.programas.cols.filter(c=>!['Imagen','Egresados'].includes(c.l));

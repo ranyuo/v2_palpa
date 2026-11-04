@@ -31,6 +31,8 @@ try {
         if ($route === 'api/empresas' && $method === 'POST') portal_json($app->registerCompany($input),201);
         if ($route === 'api/visitas' && $method === 'POST') portal_json($app->track($input));
         if ($route === 'api/portal' && $method === 'GET') portal_json($app->bootstrap());
+        if ($route === 'api/notificaciones' && $method === 'GET') portal_json($app->mailStatus());
+        if ($route === 'api/notificaciones/reintentar' && $method === 'POST') portal_json(PortalMail::retry($app,$input));
         if ($route === 'api/portal' && $method === 'PUT') portal_json($app->save($input));
         if ($route === 'api/session' && $method === 'POST') portal_json($app->login($input));
         if (preg_match('#^api/solicitudes/([a-z]+)$#', $route, $match) && $method === 'POST') {

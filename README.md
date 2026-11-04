@@ -55,7 +55,7 @@ docker exec -w /workspace/app app-php php tests/inactive-routing.php
 docker exec -w /workspace/app app-php php tests/legacy-migration.php
 ```
 
-Se retiraron los informes, paquetes y suites históricas del portal completo; se conservan las seis pruebas vigentes de esta intranet. `tests/legacy-migration.php` comprueba el paso de las tablas heredadas `pisco_*` a `intranet_*` y la restauración de respaldos `.piscobak`. Las pruebas actuales evalúan el alcance reducido, los permisos y los recorridos conservados. El correo saliente y la carga de información académica real siguen pendientes de configuración institucional.
+Se retiraron los informes, paquetes y suites históricas del portal completo; se conservan las seis pruebas vigentes de esta intranet. `tests/legacy-migration.php` comprueba el paso de las tablas heredadas `pisco_*` a `intranet_*` y la restauración de respaldos `.piscobak`. Las pruebas actuales evalúan el alcance reducido, los permisos y los recorridos conservados. El correo saliente para nuevos trámites requiere habilitar SMTP y cron según [NOTIFICACIONES-CORREO.md](NOTIFICACIONES-CORREO.md). La carga de información académica real sigue pendiente de configuración institucional.
 
 ## Paquete para Hostinger
 

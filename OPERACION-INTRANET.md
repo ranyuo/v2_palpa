@@ -101,3 +101,23 @@ Para comprobar estos cambios en desarrollo, ejecuta primero la suite PHP base y 
 `node tests/browser-standalone-services.cjs`. Esta prueba utiliza exclusivamente cuentas QA
 y una base desechable; verifica las cuatro entradas, enlaces anteriores, móvil, acceso y
 cierre de sesión, y persistencia del perfil laboral sin abandonar Bolsa laboral.
+
+## Correo receptor de Mesa de Partes
+
+En **Configuración → Correo receptor de Mesa de Partes**, el administrador puede
+cambiar la dirección que recibirá los avisos de nuevos trámites. El mismo ajuste
+aparece en **Mesa de Partes → Configuración**; al cambiarlo en cualquiera de las
+dos pantallas, se conserva un único valor.
+
+Las instalaciones nuevas usan `ranjoumisael@gmail.com`. Las instalaciones
+existentes conservan su dirección actual: el administrador debe cambiarla desde
+la configuración. Este campo corresponde al destinatario institucional, no al
+remitente `notificaciones@proyectos.pe` ni al correo que registra el solicitante.
+El envío de la confirmación y del aviso inicial se implementa mediante una cola
+SMTP privada. Consulta [Notificaciones por correo](NOTIFICACIONES-CORREO.md) para
+habilitar Gmail Workspace, configurar los reintentos y probar la entrega. Guardar
+el destinatario por sí solo no activa SMTP.
+
+Para validar el guardado, la sincronización entre pantallas y los permisos, ejecuta
+`node tests/browser-mail-settings.cjs` después de `tests/intranet.php`, con el servidor
+apuntando a la misma base desechable `_test`. La prueba restaura el correo original.

@@ -4,8 +4,8 @@ require_once __DIR__.'/Content.php';
 
 final class PortalSchema
 {
-    public const VERSION = 5;
-    private const TABLES = ['state','users','rate_limits','schema','visits','files','audit','settings','upgrade_backups'];
+    public const VERSION = 6;
+    private const TABLES = ['state','users','rate_limits','schema','visits','files','audit','settings','upgrade_backups','mail'];
     /** Renombra una sola vez las tablas heredadas pisco_* a intranet_*, conservando datos e índices. */
     public static function migrateLegacyTables(PDO $db): bool
     {

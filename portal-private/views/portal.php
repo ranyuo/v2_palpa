@@ -7079,7 +7079,7 @@ function pzEnsure() {
   if (!DB || !DB.config) return;
   const c = DB.config; c.contadores = c.contadores || {};
   ['LR', 'EXP', 'MPV', 'DOC', 'RCL'].forEach(k => { c.contadores[k] = c.contadores[k] || {}; });
-  c.mpv = Object.assign({ horaIni: '13:00', horaFin: '20:00', dias: 'Lunes a viernes', maxMB: 40, maxArchivos: 5, tipos: MPV_TIPOS.slice(), formatos: MPV_FORMATOS.map(f => f[0]), feriados: FERIADOS_2026.slice(), plazos: Object.assign({}, MPV_PLAZOS), correo: 'mesadepartes@istpalpa.edu.pe', telefono: '056-316056', prefijo: 'MPV-IESPALPA' }, c.mpv || {});
+  c.mpv = Object.assign({ horaIni: '13:00', horaFin: '20:00', dias: 'Lunes a viernes', maxMB: 40, maxArchivos: 5, tipos: MPV_TIPOS.slice(), formatos: MPV_FORMATOS.map(f => f[0]), feriados: FERIADOS_2026.slice(), plazos: Object.assign({}, MPV_PLAZOS), correo: 'ranjoumisael@gmail.com', telefono: '056-316056', prefijo: 'MPV-IESPALPA' }, c.mpv || {});
   c.lr = Object.assign({}, LR_DEF, c.lr || {});
   c.bolsa = Object.assign({}, BOLSA_DEF, c.bolsa || {});
   Object.assign(EXP_PLAZOS, c.mpv.plazos);
@@ -7245,7 +7245,7 @@ function mpvConsulta() {
 }
 function mpvInfo() {
   const c = mpvCfg(); const as = areasAll().filter(a => a.activo);
-  return `<section class="card cb" style="padding:20px"><h2 style="font-size:18px;margin-top:0">¿Cómo funciona?</h2><ol class="pz-steps"><li><b>Registra</b> tus datos, el tipo de documento, el área de destino y adjunta tus archivos.</li><li><b>Recibe</b> al instante tu N.º de expediente (${esc(c.prefijo)}-AAAA-NNNNNN), tu N.º de documento (DOC-AAAA-NNNNNN) y el cargo de recepción en PDF.</li><li><b>Mesa de Partes</b> deriva tu documento al área competente. Consulta las novedades en el seguimiento; el envío por correo está pendiente de habilitación.</li><li><b>Consulta</b> el estado en cualquier momento con tu N.º de expediente y tu DNI/RUC o el código de verificación.</li></ol>
+  return `<section class="card cb" style="padding:20px"><h2 style="font-size:18px;margin-top:0">¿Cómo funciona?</h2><ol class="pz-steps"><li><b>Registra</b> tus datos, el tipo de documento, el área de destino y adjunta tus archivos.</li><li><b>Recibe</b> al instante tu N.º de expediente (${esc(c.prefijo)}-AAAA-NNNNNN), tu N.º de documento (DOC-AAAA-NNNNNN) y el cargo de recepción en PDF.</li><li><b>Mesa de Partes</b> deriva tu documento al área competente. Consulta las novedades en el seguimiento. La confirmación de registro se envía por correo cuando el servicio está habilitado.</li><li><b>Consulta</b> el estado en cualquier momento con tu N.º de expediente y tu DNI/RUC o el código de verificación.</li></ol>
    <h3>Tipos de documento admitidos y plazos referenciales</h3><div class="tbl-wrap"><table class="tbl light no-rt"><thead><tr><th>Tipo de documento</th><th class="num">Plazo (días hábiles)</th></tr></thead><tbody>${c.tipos.map(t => `<tr><td>${esc(t)}</td><td class="num">${c.plazos[t] || 10}</td></tr>`).join('')}</tbody></table></div>
    <h3>Recepción fuera del horario</h3><p>Puedes registrar documentos las 24 horas. Los presentados después de las ${fmt12(c.horaFin)}, en sábado, domingo o feriado se consideran recibidos el <b>siguiente día hábil a las ${fmt12(c.horaIni)}</b>; los presentados antes de las ${fmt12(c.horaIni)} de un día hábil, ese mismo día a las ${fmt12(c.horaIni)}. El cargo indica la fecha y hora exacta de presentación y la de recepción administrativa.</p>
    <h3>Contacto</h3><p>✉️ <a href="mailto:${esc(c.correo)}">${esc(c.correo)}</a> · 📞 ${esc(c.telefono)} (Secretaría de Dirección) · 📍 ${esc(inst().direccion)}</p>
@@ -7306,8 +7306,7 @@ function bindMpv(q0) {
       expCargoCod(x); coll('expedientes').unshift(x);
       if (!saveDB()) return;
       numero = x.numero; numDocumento = x.numDocumento;
-      mailOut(x.correo, `Cargo de recepción ${numero}`, `Su documento ${numDocumento} (${x.tipoTramite}) fue registrado el ${fshort(fecha, true)}; recepción administrativa: ${fshort(rec.fecha, true)}. Código de verificación: ${x.cargoCod}.`);
-      mailOut(c.correo, `[${numero}] Nuevo documento: ${x.tipoTramite}`, `${x.nombres} · ${x.asunto} · Destino: ${areaName(x.areaDestino)}`);
+      // Las dos notificaciones se generan en el servidor junto al registro.
       audit('Registro', 'Mesa de partes', numero, `${x.tipoTramite} · destino ${x.areaDestino} · ${archivos.length} archivo(s)`); saveDB();
       f.reset();
       const m = modal({ title: 'Documento registrado', size: 'lg', body: `<div class="notice ok">Tu documento fue <b>recibido por la Mesa de Partes Virtual</b>.</div>
@@ -7376,7 +7375,7 @@ cargoExp = async function (id) {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(50);
   [`La recepción no implica la conformidad con el contenido del documento. El trámite será atendido por el área de destino dentro del plazo de ${c.plazos[x.tipoTramite] || EXP_PLAZOS[x.tipoTramite] || 10} días hábiles, contados desde la fecha de recepción.`,
    `Consulte el estado escaneando el código QR o en Mesa de Partes Virtual › Consultar expediente, con el N.° ${x.numero} y su documento de identidad o el código ${x.cargoCod}.`,
-   'El envío de notificaciones por correo está pendiente de habilitación; consulte el seguimiento del expediente.'].forEach(s => { const t = doc.splitTextToSize('• ' + s, tw); doc.text(t, tx, ty); ty += 3.6 * t.length + .6; });
+   'La confirmación por correo depende de la disponibilidad del servicio; conserve este cargo y consulte el seguimiento del expediente.'].forEach(s => { const t = doc.splitTextToSize('• ' + s, tw); doc.text(t, tx, ty); ty += 3.6 * t.length + .6; });
   pdfPie(doc);
   downloadBlob(doc.output('blob'), 'cargo_' + x.numero + '.pdf'); audit('Descarga de cargo', 'Mesa de partes', x.numero); saveDB();
   toast('Cargo de recepción descargado.', 'ok');
@@ -7449,7 +7448,7 @@ function mpvConfigAdm() {
       <div class="field"><label for="mc-f">Hora de cierre</label><input id="mc-f" name="horaFin" type="time" value="${esc(c.horaFin)}"></div>
       <div class="field"><label for="mc-m">Tamaño máximo por archivo (MB)</label><input id="mc-m" name="maxMB" type="number" min="1" max="100" value="${c.maxMB}"></div>
       <div class="field"><label for="mc-n">Máximo de archivos por trámite</label><input id="mc-n" name="maxArchivos" type="number" min="1" max="10" value="${c.maxArchivos}"></div>
-      <div class="field"><label for="mc-c">Correo de Mesa de Partes</label><input id="mc-c" name="correo" type="email" value="${esc(c.correo)}"></div>
+      <div class="field"><label for="mc-c">Correo de Mesa de Partes</label><input id="mc-c" name="correo" type="email" required maxlength="254" value="${esc(c.correo)}"></div>
       <div class="field full"><span class="lbl">Formatos permitidos</span><div style="display:flex;gap:14px;flex-wrap:wrap">${MPV_FORMATOS.map(([k, l]) => `<label class="check"><input type="checkbox" name="fmt" value="${k}" ${c.formatos.includes(k) ? 'checked' : ''}> ${l}</label>`).join('')}</div></div>
       <div class="field"><label for="mc-t">Tipos de documento (uno por línea)</label><textarea id="mc-t" name="tipos" rows="13">${esc(c.tipos.join('\n'))}</textarea></div>
       <div class="field"><label for="mc-p">Plazo de atención por tipo (días hábiles, “Tipo = días”)</label><textarea id="mc-p" name="plazos" rows="13">${esc(c.tipos.map(t => `${t} = ${c.plazos[t] || 10}`).join('\n'))}</textarea></div>

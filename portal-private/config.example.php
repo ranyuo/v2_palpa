@@ -9,4 +9,16 @@ return [
     'install_key' => '',
     'secure_cookies' => true, // HTTPS en Hostinger. Usa false únicamente para pruebas locales HTTP.
     'timezone' => 'America/Lima',
+    // Credenciales privadas: nunca añadir este bloque a la configuración visible del navegador.
+    // Activa solo después de reemplazar la contraseña de aplicación expuesta y configurar el cron.
+    'smtp' => [
+        'enabled' => false,
+        'host' => 'smtp.gmail.com',
+        'port' => 587,
+        'encryption' => 'tls', // STARTTLS; alternativa: 'ssl' con puerto 465.
+        'username' => 'notificaciones@proyectos.pe',
+        'password' => getenv('PALPA_SMTP_PASSWORD') ?: '',
+        'from_email' => 'notificaciones@proyectos.pe',
+        'from_name' => 'Mesa de Partes · IES Público Palpa',
+    ],
 ];

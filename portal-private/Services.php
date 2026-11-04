@@ -29,6 +29,8 @@ final class PortalServices
         foreach(['mensajes','reclamos','expedientes'] as $collection)if($user['rol']!=='admin')foreach($old[$collection] as $r)if(!PortalPolicy::find($new[$collection],'id',$r['id']))throw new PortalError(403,'No puedes eliminar registros originales.');
         foreach(['inst','redes','seo','whatsapp','limites','mpv','lr','bolsa','contadores'] as $key)if(isset($old['config'][$key])&&(!isset($new['config'][$key])||!is_array($new['config'][$key])))throw new PortalError(422,'Configuración incompleta: '.$key.'.');
         if(!PortalPolicy::equal($old['config']['mpv'],$new['config']['mpv'])){
+            $email=$new['config']['mpv']['correo']??null;
+            if(!is_string($email)||strlen($email)>254||!filter_var($email,FILTER_VALIDATE_EMAIL))throw new PortalError(422,'Indica un correo receptor válido para Mesa de Partes.');
             $c=$new['config']['mpv'];foreach(['horaIni','horaFin'] as $key)if(!preg_match('/^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/',(string)($c[$key]??'')))throw new PortalError(422,'Hora de atención no válida.');
             if($c['horaFin']<=$c['horaIni']||($c['maxMB']??0)<1||$c['maxMB']>40||($c['maxArchivos']??0)<1||$c['maxArchivos']>5)throw new PortalError(422,'Horario o límites de adjuntos no válidos.');
             if(!is_array($c['formatos']??null)||!$c['formatos']||array_diff($c['formatos'],['pdf','doc','docx','xls','xlsx','jpg','jpeg','png']))throw new PortalError(422,'Formatos de Mesa de Partes no válidos.');

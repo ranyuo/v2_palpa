@@ -3,7 +3,8 @@ declare(strict_types=1);
 ob_start();require dirname(__DIR__).'/portal-private/bootstrap.php';
 $path=getenv('PORTAL_CONFIG_FILE');if(!$path||!str_ends_with($path,'config.test.php'))throw new RuntimeException('Solo config.test.php.');
 $config=require $path;if(!str_ends_with($config['db_name'],'_test'))throw new RuntimeException('Solo base desechable _test.');
-$app=portal_app();$db=$app->db();foreach(['intranet_','pisco_'] as $prefix)foreach(['audit','settings','files','visits','schema','rate_limits','users','state','upgrade_backups'] as $table)$db->exec('DROP TABLE IF EXISTS '.$prefix.$table);
+if(($config['smtp']['enabled']??false)!==false)throw new RuntimeException('Deshabilita SMTP real en la configuración de pruebas.');
+$app=portal_app();$db=$app->db();foreach(['intranet_','pisco_'] as $prefix)foreach(['mail','audit','settings','files','visits','schema','rate_limits','users','state','upgrade_backups'] as $table)$db->exec('DROP TABLE IF EXISTS '.$prefix.$table);
 const PASS='PruebaIntranet-2026!';$count=0;
 function ok(bool $v,string $m):void{global $count;if(!$v)throw new RuntimeException($m);$count++;echo "OK $m\n";}
 function denied(int $status,callable $f,string $m):void{try{$f();}catch(PortalError $e){ok($e->status===$status,$m);return;}throw new RuntimeException($m);}

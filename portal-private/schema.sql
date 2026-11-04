@@ -61,3 +61,18 @@ CREATE TABLE IF NOT EXISTS intranet_settings (
     setting_key VARCHAR(80) PRIMARY KEY,
     setting_value JSON NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS intranet_mail (
+    id CHAR(64) PRIMARY KEY,
+    record_id CHAR(64) NOT NULL,
+    reference VARCHAR(100) NOT NULL,
+    recipient VARCHAR(254) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    body TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'Pendiente',
+    attempts INT UNSIGNED NOT NULL DEFAULT 0,
+    last_error VARCHAR(255) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    next_attempt_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+    sent_at DATETIME NULL,
+    INDEX (status,next_attempt_at), INDEX (record_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

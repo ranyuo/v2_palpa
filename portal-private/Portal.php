@@ -23,6 +23,7 @@ require_once __DIR__.'/Patch.php';
 require_once __DIR__.'/Rules.php';
 require_once __DIR__.'/Services.php';
 require_once __DIR__.'/Academic.php';
+require_once __DIR__.'/Mail.php';
 
 final class PortalApp
 {
@@ -59,6 +60,12 @@ final class PortalApp
     private ?PDO $connection = null;
 
     public function __construct(private readonly array $config) {}
+
+    public function processMail(int $limit=10,?string $recordId=null): array
+    {return (new PortalMail($this->config['smtp']??[]))->process($this->db(),$limit,$recordId);}
+
+    public function mailStatus(): array
+    {return (new PortalMail($this->config['smtp']??[]))->status($this);}
 
     public function db(): PDO
     {
@@ -449,7 +456,7 @@ final class PortalApp
         if (array_sum(array_column($record['archivos'] ?? [], 'size')) + ($record['adjunto']['size'] ?? 0) > 40 * 1024 * 1024) {
             throw new PortalError(422, 'Los adjuntos no pueden superar 40 MB en total.');
         }
-        return $this->transaction(function () use ($record, $type, $input) {
+        $result = $this->transaction(function () use ($record, $type, $input) {
             $state = $this->state(true);
             $data = json_decode($state['data'], true, flags: JSON_THROW_ON_ERROR);
             $record=$this->formDomain($type,$record,$data);
@@ -501,6 +508,7 @@ final class PortalApp
             if (in_array($type, ['reclamos', 'expedientes'], true)) {
                 $record['historial'] = [['fecha' => $record['fecha'], 'usuario' => 'portal', 'estado' => 'Recibido', 'nota' => 'Registro recibido desde el portal.']];
             }
+            if($type==='expedientes')PortalMail::enqueue($this->db(),$record,$data);
             $data[$type] = [$record, ...($data[$type] ?? [])];
             if(in_array($type,['mensajes','reclamos','expedientes'],true))PortalDomain::staff($data,'Nuevo registro: '.($record['codigo']??$record['numero']??$record['asunto']??$type),$type==='expedientes'?'mesa':$type);
             $this->updateState($data, (int)$state['revision'] + 1);
@@ -508,6 +516,11 @@ final class PortalApp
             $_SESSION['challenges'][$input['proof']['challenge_id']]['used_key']=$input['idempotency_key'];
             return ['record' => $record, 'status' => 201,'revision'=>(int)$state['revision']+1,'counters'=>$this->user()?($data['config']['contadores']??[]):null];
         });
+        if($type==='expedientes'){
+            try{$this->processMail(2,$result['record']['id']);}
+            catch(Throwable $error){error_log('Intranet Palpa: cola de correo pendiente; revisar trabajador SMTP.');}
+        }
+        return $result;
     }
 
     public function lookup(string $type, array $input): array

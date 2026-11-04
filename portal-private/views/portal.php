@@ -3638,6 +3638,7 @@ function registroEmpresa(){
   <div class="alert info" style="margin:10px 0"><b>Criterios de validación</b><ul style="margin:6px 0 0;padding-left:18px">${crit.criterios.map(c => `<li>${esc(c)}</li>`).join("")}</ul><span class="note">Responsable de la aprobación: ${esc(crit.responsable)}${crit.correo ? ` · ${esc(crit.correo)}` : ""}</span></div>
   <form class="f" data-form="regEmp" novalidate>${EMP_REG_FIELDS().map(f => fieldHtml(f,"")).join("")}${fieldHtml({k:"pass",l:"Contraseña para la intranet",t:"password",req:true,pat:[/^.{12,}$/,"Mínimo 12 caracteres."]},"")}
   <div class="fld wide"><label style="display:flex;gap:8px;align-items:flex-start;font-weight:400"><input type="checkbox" id="empDecl"> <span>Declaro bajo juramento que la empresa se encuentra con RUC <b>activo y habido</b>, que los datos registrados son verídicos y que las ofertas que publique cumplirán la normativa laboral vigente.</span></label><span class="err" id="empDeclErr"></span></div>
+  <div class="fld wide mpv-progress" data-company-progress role="status" hidden><span class="mpv-spinner" aria-hidden="true"></span><span>Registrando empresa, espera un momento. No cierres la página ni repitas el envío.</span></div>
   <div class="fld"><button class="btn" type="submit">Crear cuenta de empresa</button></div></form></section>`;
 }
 const rucValido = r => { r = String(r || ""); if(!/^(10|15|17|20)\d{9}$/.test(r)) return false; const w = [5,4,3,2,7,6,5,4,3,2]; const s = w.reduce((a, x, i) => a + x * +r[i], 0); let d = 11 - s % 11; if(d === 10) d = 0; if(d === 11) d = 1; return d === +r[10] };
@@ -4130,15 +4131,17 @@ const FORMS = {
     HOST.exps().unshift(x); notify("r:adm",`Expediente ${x.num} recibido: ${tram(x.tramite).nombre}`,"mesa"); notify("r:admin",`Expediente ${x.num} recibido`,"mesa");
     log("Registrar","Mesa de partes",x.num); if(!save())return false; render(); docCargo(x.id); toast(`Documento recibido: ${x.num}. Guarde su código de seguimiento.`);
   },
-  regEmp(form){
+  async regEmp(form){
+    if(form.dataset.sending)return;
     const fields=[...EMP_REG_FIELDS(),{k:"pass",req:true,pat:[/^.{12,}$/,"Mínimo 12 caracteres."]}];
     const {vals,errs}=readFields(fields,form);
     if(vals.ruc&&!errs.ruc&&!rucValido(vals.ruc))errs.ruc="El RUC no es válido.";
     const decl=form.querySelector("#empDecl");if(!decl?.checked)errs.ruc="Debes aceptar la declaración jurada.";
     if(!showErrs(form,errs))return;
-    try{const result=HOST.registerCompany({...vals,declaration:decl.checked});DB.empresas.push(result.company);render();
+    form.dataset.sending='true';const controls=[...form.elements].map(el=>[el,el.disabled]);controls.forEach(([el])=>el.disabled=true);const progress=form.querySelector('[data-company-progress]');if(progress)progress.hidden=false;const button=form.querySelector('[type=submit]');const original=button?.textContent;if(button){button.disabled=true;button.textContent='Registrando empresa, espera un momento…';}
+    try{const result=await HOST.registerCompany({...vals,declaration:decl.checked});DB.empresas.push(result.company);render();
       openModal({title:"Empresa registrada",body:`<div class="alert ok">${esc(result.company.nom)} quedó pendiente de validación institucional.</div><p>Tu usuario es <b>${esc(result.username)}</b>. Entra con la contraseña que acabas de elegir.</p>`,foot:'<a class="btn" href="#/admin">Ingresar a la intranet</a>'});
-    }catch(error){toast(error.message);}
+    }catch(error){toast(error.message);}finally{delete form.dataset.sending;controls.forEach(([el,disabled])=>el.disabled=disabled);if(progress)progress.hidden=true;if(button)button.textContent=original;}
   },
   empSelf(form){
     const e = myEmp(), fields = ENT.empresas.fields().filter(f => f.k !== "validada" && f.k !== "ruc"), {vals, errs} = readFields(fields, form);
@@ -6661,7 +6664,7 @@ function mensajeDetalle(id) {
   if (m.estado === 'Nuevo') { m.estado = 'Leído'; m.historial = m.historial || []; m.historial.push({ fecha: nowISO(), usuario: currentUser().usuario, estado: 'Leído' }); audit('Lectura', 'Mensajes de contacto', m.asunto); saveDB(); }
   const html = admHead(m.asunto, `Recibido el ${fdate(m.fecha, true)}`, `<a class="btn ghost" href="#/admin/mensajes">${sic('back')} Volver a la bandeja</a>`, 'mail', [['Mensajes de contacto', '#/admin/mensajes'], ['Detalle']])
     + `<div class="edit-grid"><div class="panel"><h2>Mensaje</h2><div class="pb"><dl class="kv"><dt>Nombres</dt><dd>${esc(m.nombres)}</dd><dt>Correo</dt><dd><a href="mailto:${esc(m.correo)}">${esc(m.correo)}</a></dd><dt>Teléfono</dt><dd>${esc(m.telefono || '—')}</dd>${m.documento ? `<dt>Documento</dt><dd>${esc(canFlag('viewDni') ? m.documento : maskDni(m.documento))}</dd>` : ''}<dt>Programa de interés</dt><dd>${esc((progById(m.programa) || {}).nombre || '—')}</dd></dl><div class="card cb" style="margin-top:12px;white-space:pre-wrap">${esc(m.mensaje)}</div>
-    <h3 style="margin-top:16px">Responder</h3><textarea class="inp" id="mr" rows="4" placeholder="Respuesta institucional; el envío por correo está pendiente.">${esc(m.respuesta || '')}</textarea><p style="margin-top:8px"><button class="btn" data-reply>${sic('send')} Guardar respuesta y marcar atendido</button></p></div></div>
+    <h3 style="margin-top:16px">Responder</h3><textarea class="inp" id="mr" rows="4" placeholder="Respuesta institucional; el aviso se registra en la cola de correo.">${esc(m.respuesta || '')}</textarea><p style="margin-top:8px"><button class="btn" data-reply>${sic('send')} Guardar respuesta y marcar atendido</button></p></div></div>
     <div><div class="panel"><h2>Estado</h2><div class="pb" style="display:grid;gap:8px">${stBadge(m.estado)}<div class="field"><label for="mst">Cambiar estado</label><select id="mst">${['Nuevo', 'Leído', 'Atendido'].map(s => `<option ${s === m.estado ? 'selected' : ''}>${s}</option>`).join('')}</select></div><button class="btn sec" data-st>Actualizar estado</button></div></div><div class="panel"><h2>Historial</h2><div class="pb">${histHTML(m.historial)}</div></div></div></div>`;
   return {
     html, after: () => {
@@ -6674,17 +6677,17 @@ function mensajeDetalle(id) {
 
 /* ---------- Libro de reclamaciones ---------- */
 const LR_STATES = ['Recibido', 'En atención', 'Atendido'];
-const lrTabs = a => tabsBar([['l', 'Reclamaciones', '#/admin/reclamos'], ['n', 'Correo pendiente', '#/admin/reclamos/notificaciones']], a);
+const lrTabs = a => tabsBar([['l', 'Reclamaciones', '#/admin/reclamos'], ['n', 'Notificaciones por correo', '#/admin/reclamos/notificaciones']], a);
 CUSTOM.reclamos = (parts) => {
   if (parts[2] === 'notificaciones') return lrNotif();
   if (parts[2]) return reclamoDetalle(parts[2]);
   const all = coll('reclamos'); const y = String(yearNow());
-  const top = `<div class="kpis">${kpi('book', 'var(--blue)', all.filter(r => r.fecha.startsWith(y)).length, 'Registrados en ' + y)}${kpi('inbox', 'var(--warn)', all.filter(r => r.estado === 'Recibido' && !r.anulado).length, 'Recibidos sin atender')}${kpi('clock', '#6d4bc4', all.filter(r => r.estado === 'En atención' && !r.anulado).length, 'En atención')}${kpi('check', 'var(--ok)', all.filter(r => r.estado === 'Atendido' && !r.anulado).length, 'Atendidos')}${kpi('alert', 'var(--err)', all.filter(r => r.notifInst === 'Error' && !r.anulado).length, 'Notificaciones con error')}</div>`;
+  const top = `<div class="kpis">${kpi('book', 'var(--blue)', all.filter(r => r.fecha.startsWith(y)).length, 'Registrados en ' + y)}${kpi('inbox', 'var(--warn)', all.filter(r => r.estado === 'Recibido' && !r.anulado).length, 'Recibidos sin atender')}${kpi('clock', '#6d4bc4', all.filter(r => r.estado === 'En atención' && !r.anulado).length, 'En atención')}${kpi('check', 'var(--ok)', all.filter(r => r.estado === 'Atendido' && !r.anulado).length, 'Atendidos')}${kpi('alert', 'var(--err)', 'Ver panel', 'Notificaciones SMTP')}</div>`;
   const ib2 = inbox({
     key: 'reclamos', collName: 'reclamos', title: 'Libro de reclamaciones', sub: 'Los registros no pueden eliminarse ni modificarse en su contenido original. Solo se gestiona su atención.', icon: 'book', states: LR_STATES.concat('Anulado'), trash: false, top, tabs: lrTabs('l'),
     filterExtra: [{ n: 'tipo', l: 'Tipo', opts: ['Reclamo', 'Queja'] }], search: r => [r.codigo, r.nombres, r.asunto, r.numDoc].join(' '),
     extraActs: `<button class="btn sec" data-rcsv>${sic('download')} Reporte CSV</button><a class="btn ghost" href="#/servicios/libro-de-reclamaciones" target="_blank">Ver formulario público</a>`,
-    cols: [{ l: 'Código', f: r => `<b>${esc(r.codigo)}</b>` }, { l: 'Fecha', f: r => fshort(r.fecha, true) }, { l: 'Tipo', f: r => esc(r.tipo) }, { l: 'Reclamante', f: r => `${esc(r.nombres)}<br><small>${esc(r.tipoDoc)} ${dniCell(r.numDoc)}</small>` }, { l: 'Asunto', f: r => esc(clamp(r.asunto, 50)) }, { l: 'Notif. institucional', cls: 'c', f: r => stBadge(r.notifInst) }, { l: 'Estado', cls: 'c', f: r => stBadge(r.anulado ? 'Anulado' : r.estado) }, { l: 'Días', cls: 'num', f: r => r.estado === 'Atendido' || r.anulado ? '—' : `<span style="color:${daysAgo(r.fecha) > 10 ? 'var(--err)' : 'inherit'}">${daysAgo(r.fecha)}</span>` }],
+    cols: [{ l: 'Código', f: r => `<b>${esc(r.codigo)}</b>` }, { l: 'Fecha', f: r => fshort(r.fecha, true) }, { l: 'Tipo', f: r => esc(r.tipo) }, { l: 'Reclamante', f: r => `${esc(r.nombres)}<br><small>${esc(r.tipoDoc)} ${dniCell(r.numDoc)}</small>` }, { l: 'Asunto', f: r => esc(clamp(r.asunto, 50)) }, { l: 'Correo', cls: 'c', f: r => 'Ver panel SMTP' }, { l: 'Estado', cls: 'c', f: r => stBadge(r.anulado ? 'Anulado' : r.estado) }, { l: 'Días', cls: 'num', f: r => r.estado === 'Atendido' || r.anulado ? '—' : `<span style="color:${daysAgo(r.fecha) > 10 ? 'var(--err)' : 'inherit'}">${daysAgo(r.fecha)}</span>` }],
   });
   return { html: ib2.html, after: () => { ib2.after(); $('[data-rcsv]').onclick = () => { downloadText(toCSV([['Código', 'Fecha', 'Tipo', 'Reclamante', 'Documento', 'Correo', 'Asunto', 'Estado', 'Notificación institucional', 'Fecha de atención', 'Respuesta']].concat(ib2.rows.map(r => [r.codigo, fshort(r.fecha, true), r.tipo, r.nombres, r.tipoDoc + ' ' + (canFlag('viewDni') ? r.numDoc : maskDni(r.numDoc)), r.correo, r.asunto, r.anulado ? 'Anulado' : r.estado, r.notifInst, r.atendidoEn ? fshort(r.atendidoEn, true) : '', r.respuesta]))), 'reporte_libro_reclamaciones.csv', 'text/csv'); audit('Exportación', 'Libro de reclamaciones', ib2.rows.length + ' registros'); saveDB(); }; } };
 };
@@ -6693,10 +6696,10 @@ function reclamoDetalle(id) {
   const isAdm = currentUser().rol === 'admin';
   const html = admHead(`${r.tipo} ${r.codigo}`, `Registrado el ${fdate(r.fecha, true)} · ${r.anulado ? '<span class="badge err">Anulado</span>' : stBadge(r.estado)}`, `<button class="btn sec" data-pdf>${sic('print')} Hoja de reclamación (PDF)</button><a class="btn ghost" href="#/admin/reclamos">${sic('back')} Volver</a>`, 'book', [['Libro de reclamaciones', '#/admin/reclamos'], [r.codigo]])
     + `<div class="edit-grid"><div style="display:grid;gap:16px"><div class="panel"><h2>Registro original <span class="badge gray">${sic('lock', 12)} Solo lectura</span></h2><div class="pb"><dl class="kv"><dt>Código</dt><dd><b>${esc(r.codigo)}</b></dd><dt>Fecha y hora</dt><dd>${fdate(r.fecha, true)}</dd><dt>Tipo</dt><dd>${esc(r.tipo)}</dd><dt>Reclamante</dt><dd>${esc(r.nombres)}</dd><dt>Documento</dt><dd>${esc(r.tipoDoc)} ${dniCell(r.numDoc)}</dd><dt>Correo</dt><dd>${esc(r.correo)}</dd><dt>Teléfono</dt><dd>${esc(r.telefono || '—')}</dd><dt>Asunto</dt><dd>${esc(r.asunto)}</dd></dl><h3>Descripción del hecho</h3><div class="card cb" style="white-space:pre-wrap">${esc(r.descripcion)}</div><h3>Pedido</h3><div class="card cb" style="white-space:pre-wrap">${esc(r.pedido)}</div>${r.adjunto ? `<p><button class="btn sm sec" data-adj>${sic('download')} Adjunto: ${esc(r.adjunto.original || r.adjunto.nombre)} (${fsize(r.adjunto.size)})</button></p>` : '<p style="color:var(--muted)">Sin archivo adjunto.</p>'}</div></div>
-    <div class="panel"><h2>Respuesta institucional</h2><div class="pb">${r.respuesta ? `<div class="notice ok" style="white-space:pre-wrap">${esc(r.respuesta)}<br><small>Respondido por ${esc(r.atendidoPor || '—')} el ${fshort(r.atendidoEn, true)} · Notificación al usuario: ${esc(r.notifUser)}</small></div>` : ''}${r.anulado ? '' : `<textarea class="inp" id="lr-resp" aria-label="Respuesta al reclamante" rows="5" placeholder="Respuesta institucional; el envío por correo está pendiente.">${esc(r.respuesta || '')}</textarea><p style="margin-top:8px"><button class="btn ok" data-resp>${sic('send')} Guardar respuesta y marcar atendido</button></p>`}</div></div>
+    <div class="panel"><h2>Respuesta institucional</h2><div class="pb">${r.respuesta ? `<div class="notice ok" style="white-space:pre-wrap">${esc(r.respuesta)}<br><small>Respondido por ${esc(r.atendidoPor || '—')} el ${fshort(r.atendidoEn, true)} · Notificación al usuario: Ver panel de correo</small></div>` : ''}${r.anulado ? '' : `<textarea class="inp" id="lr-resp" aria-label="Respuesta al reclamante" rows="5" placeholder="Respuesta institucional; el aviso se registra en la cola de correo.">${esc(r.respuesta || '')}</textarea><p style="margin-top:8px"><button class="btn ok" data-resp>${sic('send')} Guardar respuesta y marcar atendido</button></p>`}</div></div>
     <div class="panel"><h2>Notas internas <small style="font-weight:400;color:var(--muted)">(no visibles para el ciudadano)</small></h2><div class="pb">${(r.notas || []).map(n => `<div class="card cb" style="margin-bottom:8px"><small style="color:var(--muted)">${esc(n.usuario)} · ${fshort(n.fecha, true)}</small><br>${esc(n.texto)}</div>`).join('') || '<p style="color:var(--muted)">Sin notas.</p>'}<div style="display:flex;gap:8px"><input class="inp" id="lr-nota" aria-label="Nueva nota interna" placeholder="Agregar nota interna"><button class="btn sec" data-nota>Agregar</button></div></div></div></div>
     <div style="display:grid;gap:16px;align-content:start"><div class="panel"><h2>Gestión</h2><div class="pb" style="display:grid;gap:10px">${r.anulado ? `<div class="notice err">Registro anulado por ${esc(r.anuladoPor)}: ${esc(r.motivoAnulacion)}</div>` : `<div class="field"><label for="lr-st">Estado</label><select id="lr-st">${LR_STATES.map(s => `<option ${s === r.estado ? 'selected' : ''}>${s}</option>`).join('')}</select></div><div class="field"><label for="lr-sn">Comentario del cambio</label><input id="lr-sn" class="inp"></div><button class="btn" data-st>Actualizar estado</button>${isAdm ? `<button class="btn danger" data-anular>Anular registro</button><small style="color:var(--muted)">La anulación no elimina el registro; queda en el historial y la auditoría.</small>` : ''}`}</div></div>
-    <div class="panel"><h2>Notificaciones</h2><div class="pb meta-list"><span>Al correo institucional: ${stBadge(r.notifInst)}</span>${r.notifInst === 'Error' ? `<button class="btn sm gold" data-retry>${sic('restore')} Reintentar envío</button>` : ''}<span>Constancia al ciudadano: ${stBadge(r.notifUser)}</span><span style="font-size:12px">Destino: ${esc(DB.config.correoReclamos)}</span></div></div>
+    <div class="panel"><h2>Notificaciones</h2><div class="pb"><p>La constancia, las derivaciones y las respuestas se notifican desde el correo central. El administrador puede consultar entregas, errores y reintentos en Configuración de la intranet → Notificaciones por correo.</p></div></div>
     <div class="panel"><h2>Historial de estados</h2><div class="pb">${histHTML(r.historial)}</div></div></div></div>`;
   return {
     html, after: () => {
@@ -6705,17 +6708,13 @@ function reclamoDetalle(id) {
       const adj = $('[data-adj]'); if (adj) adj.onclick = () => { downloadDoc(r.adjunto); audit('Descarga de adjunto', 'Libro de reclamaciones', r.codigo); saveDB(); };
       $('[data-nota]').onclick = () => { const t = $('#lr-nota').value.trim(); if (!t) return; r.notas = r.notas || []; r.notas.push({ fecha: nowISO(), usuario: me, texto: t }); audit('Nota interna', 'Libro de reclamaciones', r.codigo); save('Nota agregada.'); };
       const st = $('[data-st]'); if (st) st.onclick = () => { const v = $('#lr-st').value; if (v === r.estado) return toast('Seleccione un estado diferente.', 'err'); if (v === 'Atendido' && !r.respuesta) return toast('Registre primero la respuesta institucional.', 'err'); r.historial.push({ fecha: nowISO(), usuario: me, estado: v, nota: $('#lr-sn').value.trim() }); audit(`Cambio de estado: ${r.estado} → ${v}`, 'Libro de reclamaciones', r.codigo); r.estado = v; save('Estado actualizado.'); };
-      const rs = $('[data-resp]'); if (rs) rs.onclick = () => { const t = $('#lr-resp').value.trim(); if (t.length < 10) return toast('La respuesta debe tener al menos 10 caracteres.', 'err'); r.respuesta = t; r.atendidoPor = me; r.atendidoEn = nowISO(); r.notifUser = mailOut(r.correo, `Respuesta a su ${r.tipo.toLowerCase()} ${r.codigo}`, t); if (r.estado !== 'Atendido') r.historial.push({ fecha: nowISO(), usuario: me, estado: 'Atendido', nota: 'Respuesta registrada en el portal' }); r.estado = 'Atendido'; audit('Respuesta institucional', 'Libro de reclamaciones', r.codigo, 'Notificación al usuario: ' + r.notifUser); save(r.notifUser === 'Error' ? 'Respuesta registrada, pero falló el envío del correo.' : 'Respuesta registrada. El correo está desactivado.'); };
-      const rt = $('[data-retry]'); if (rt) rt.onclick = () => { r.notifInst = mailOut(DB.config.correoReclamos, `[${r.codigo}] Reenvío de notificación`, `${r.nombres} - ${r.asunto}`); audit('Reintento de notificación', 'Libro de reclamaciones', r.codigo, 'Resultado: ' + r.notifInst); save(r.notifInst === 'Enviado' ? 'Notificación reenviada correctamente.' : 'El envío volvió a fallar. Revise la configuración de correo.'); };
+      const rs = $('[data-resp]'); if (rs) rs.onclick = () => { const t = $('#lr-resp').value.trim(); if (t.length < 10) return toast('La respuesta debe tener al menos 10 caracteres.', 'err'); r.respuesta = t; r.atendidoPor = me; r.atendidoEn = nowISO();  if (r.estado !== 'Atendido') r.historial.push({ fecha: nowISO(), usuario: me, estado: 'Atendido', nota: 'Respuesta registrada en el portal' }); r.estado = 'Atendido'; audit('Respuesta institucional', 'Libro de reclamaciones', r.codigo, 'Notificación al usuario: ' + r.notifUser); save('Respuesta registrada. El aviso se procesará desde la cola de correo.'); };
       const an = $('[data-anular]'); if (an) an.onclick = async () => { const m = await promptBox('Motivo de la anulación (quedará registrado):', { title: 'Anular registro', ok: 'Anular', textarea: true }); if (m == null) return; if (m.trim().length < 5) return toast('Indique el motivo.', 'err'); r.anulado = true; r.anuladoPor = me; r.motivoAnulacion = m.trim(); r.historial.push({ fecha: nowISO(), usuario: me, estado: 'Anulado', nota: m.trim() }); audit('Anulación', 'Libro de reclamaciones', r.codigo, m.trim()); save('Registro anulado.'); };
     }
   };
 }
 function lrNotif() {
-  const rows = coll('correos').filter(c => /LR-|reclam|queja/i.test(c.asunto) || c.para === DB.config.correoReclamos);
-  const html = admHead('Libro de reclamaciones', 'Bitácora de correos generados por el sistema (en producción se envían por SMTP institucional).', '', 'book', [['Libro de reclamaciones', '#/admin/reclamos'], ['Notificaciones']]) + lrTabs('n')
-    + `<div class="panel"><div class="tbl-wrap" style="border:0"><table class="tbl light"><thead><tr><th>Fecha</th><th>Destinatario</th><th>Asunto</th><th class="c">Resultado</th></tr></thead><tbody>${rows.map(c => `<tr><td>${fshort(c.fecha, true)}</td><td>${esc(c.para)}</td><td>${esc(c.asunto)}</td><td class="c">${stBadge(c.estado)}</td></tr>`).join('') || '<tr><td colspan="4"><div class="empty">Aún no se generaron notificaciones.</div></td></tr>'}</tbody></table></div></div>`;
-  return { html };
+ return {html:admHead('Notificaciones del Libro de Reclamaciones','Los avisos se generan en el servidor y se entregan con el correo central.','','book')+lrTabs('n')+'<div class="panel"><div class="pb"><p>Consulta los estados reales y los reintentos en Configuración de la intranet → Notificaciones por correo. Esta bitácora está reservada al administrador.</p></div></div>'};
 }
 
 /* ---------- Mesa de partes virtual ---------- */
@@ -7420,8 +7419,8 @@ expDetalle = function (id) {
       <h3 style="margin-top:14px">Asunto</h3><div class="card cb" style="white-space:pre-wrap">${esc(x.asunto)}</div>${x.observaciones ? `<p><b>Observaciones:</b> ${esc(x.observaciones)}</p>` : ''}
       <h3 style="margin-top:14px">Archivos adjuntos (${archivos.length})</h3>${archivos.length ? `<ul class="pz-files">${archivos.map((a, i) => `<li>${S16('file')} <span>${esc(a.original || a.nombre)}</span> <small>${fsize(a.size)}</small><button class="btn xs sec" data-dl="${i}">${sic('download', 13)} Descargar</button>${a.sha256 ? `<code title="SHA-256">${esc(a.sha256.slice(0, 16))}…</code>` : ''}</li>`).join('')}</ul>` : '<p>Sin archivos.</p>'}</div></div>
       <div class="panel"><h2>Historial y seguimiento</h2><div class="pb">${histHTML(x.historial)}</div></div></div>
-    <div style="display:grid;gap:16px;align-content:start"><div class="panel"><h2>Derivar a un área</h2><div class="pb" style="display:grid;gap:10px"><div class="field"><label for="xa">Área receptora</label><select id="xa">${areaOptions(x.area === 'MP' ? (x.areaDestino || '') : x.area, { placeholder: 'Seleccione el área' })}</select></div><div class="field"><label for="xan">Proveído / indicación</label><input id="xan" class="inp" placeholder="Ej.: Para su atención y trámite correspondiente"></div><label class="check"><input type="checkbox" id="xam" disabled> Correo pendiente de configuración</label><button class="btn" data-xa>${sic('send')} Derivar expediente</button></div></div>
-      <div class="panel"><h2>Actualizar estado</h2><div class="pb" style="display:grid;gap:10px"><div class="field"><label for="xs">Nuevo estado</label><select id="xs">${EXP_STATES.map(s => `<option ${s === x.estado ? 'selected' : ''}>${s}</option>`).join('')}</select></div><div class="field"><label for="xn">Nota / respuesta</label><textarea id="xn" class="inp" rows="3"></textarea></div><label class="check"><input type="checkbox" id="xm" disabled> Correo pendiente de configuración</label><button class="btn sec" data-xs>Guardar estado</button></div></div>
+    <div style="display:grid;gap:16px;align-content:start"><div class="panel"><h2>Derivar a un área</h2><div class="pb" style="display:grid;gap:10px"><div class="field"><label for="xa">Área receptora</label><select id="xa">${areaOptions(x.area === 'MP' ? (x.areaDestino || '') : x.area, { placeholder: 'Seleccione el área' })}</select></div><div class="field"><label for="xan">Proveído / indicación</label><input id="xan" class="inp" placeholder="Ej.: Para su atención y trámite correspondiente"></div><label class="check"><input type="checkbox" id="xam" checked disabled> Avisos automáticos por correo</label><button class="btn" data-xa>${sic('send')} Derivar expediente</button></div></div>
+      <div class="panel"><h2>Actualizar estado</h2><div class="pb" style="display:grid;gap:10px"><div class="field"><label for="xs">Nuevo estado</label><select id="xs">${EXP_STATES.map(s => `<option ${s === x.estado ? 'selected' : ''}>${s}</option>`).join('')}</select></div><div class="field"><label for="xn">Nota / respuesta</label><textarea id="xn" class="inp" rows="3"></textarea></div><label class="check"><input type="checkbox" id="xm" checked disabled> Avisos automáticos por correo</label><button class="btn sec" data-xs>Guardar estado</button></div></div>
       <div class="panel"><h2>Plazo</h2><div class="pb meta-list"><span>Tipo: ${esc(x.tipoTramite)} · ${(mpvCfg().plazos[x.tipoTramite] || EXP_PLAZOS[x.tipoTramite] || 10)} días hábiles</span><span>Vence: <b>${fdate(expPlazo(x).due)}</b></span><span>${expSem(x)}</span></div></div></div></div>`;
   return {
     html, after: () => {
@@ -7434,7 +7433,7 @@ expDetalle = function (id) {
         x.area = v; if (['Recibido', 'Observado'].includes(x.estado)) x.estado = 'Derivado';
         x.historial.push({ fecha: nowISO(), usuario: me, estado: x.estado, nota: n });
         if ($('#xam').checked) { if (a) mailOut(a.correo, `[${x.numero}] Expediente derivado: ${x.tipoTramite}`, `${x.nombres} · ${x.asunto}${prov ? ' · Proveído: ' + prov : ''}`); mailOut(x.correo, `Expediente ${x.numero}: derivado`, `Su documento fue derivado a ${areaName(v)}.`); }
-        audit('Derivación', 'Mesa de partes', x.numero, n); stamp(x); if (saveDB()) { toast('Expediente derivado. El envío por correo está pendiente de configuración.', 'ok'); route(); }
+        audit('Derivación', 'Mesa de partes', x.numero, n); stamp(x); if (saveDB()) { toast('Expediente derivado. Avisos registrados para el solicitante y el área receptora.', 'ok'); route(); }
       };
       $('[data-xs]').onclick = () => {
         const v = $('#xs').value, n = $('#xn').value.trim(); if (v === x.estado && !n) return toast('Seleccione otro estado o escriba una nota.', 'err'); if (['Observado', 'Atendido'].includes(v) && !n) return toast(v === 'Observado' ? 'Indique la observación.' : 'Registre la respuesta o el detalle de la atención.', 'err');
@@ -7516,6 +7515,7 @@ function lrForm() {
     <div class="field pz-decl"><label class="check"><input type="checkbox" name="declaro"> <span>Declaro que la información proporcionada es verdadera y corresponde a los hechos que deseo comunicar. <span class="req">*</span></span></label></div>
     <div class="field"><label class="check"><input type="checkbox" name="acepto"> <span>Acepto la <a href="#/politica-de-privacidad" target="_blank">Política de Privacidad</a> y el tratamiento de mis datos personales (Ley N.º 29733). <span class="req">*</span></span></label></div>
     ${captchaHTML('cap-lr2')}
+    <div class="mpv-progress" data-lr-progress role="status" aria-live="polite" hidden><span class="mpv-spinner" aria-hidden="true"></span><div><strong>Registrando reclamo, espera un momento…</strong><p>Estamos guardando tu solicitud y preparando tu constancia. No cierres la página ni repitas el envío.</p></div></div>
     <div class="pz-actions"><button type="reset" class="btn ghost">${S16('back')} Cancelar</button><button class="btn" data-send>${S16('send')} Enviar reclamo</button></div>
    </div></form>`;
 }
@@ -7541,13 +7541,13 @@ R('servicios/libro-de-reclamaciones', (path, q0) => lrPage(path, q0));
 R('transparencia/libro-de-reclamaciones', (path, q0) => lrPage('servicios/libro-de-reclamaciones', q0));
 R('libro-de-reclamaciones', (path, q0) => lrPage('servicios/libro-de-reclamaciones', q0 || new URLSearchParams()));
 function bindLr2(q0) {
-  const c = lrCfg(); const f = $('[data-lr2]'); const L = DB.config.limites; const lim = Math.max(2000, L.descripcion || 0);
+  const c = lrCfg(); const f = $('[data-lr2]');let busy=false,pending=null; const L = DB.config.limites; const lim = Math.max(2000, L.descripcion || 0);
   const showTab = k => { $$('.pz-mt [data-tab]').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === k)); $$('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== k); };
   $$('.pz-mt [data-tab]').forEach(b => b.onclick = () => showTab(b.dataset.tab));
   $$('[data-count]', f).forEach(t => t.addEventListener('input', () => { t.parentNode.querySelector('[data-c]').textContent = t.value.length; }));
   f.addEventListener('reset', () => setTimeout(() => $$('[data-c]', f).forEach(x => x.textContent = '0'), 0));
   f.onsubmit = async e => {
-    e.preventDefault(); const v = Object.fromEntries(new FormData(f)); const er = {};
+    e.preventDefault();if(busy)return; const v = Object.fromEntries(new FormData(f)); const er = {};
     if (!v.tipoDoc) er.tipoDoc = 'Seleccione el tipo de documento.';
     else { const de = validDoc(v.tipoDoc, v.numDoc); if (!v.numDoc) er.numDoc = 'Ingrese el número de documento.'; else if (de) er.numDoc = de; }
     if (String(v.nombresP).trim().length < 2) er.nombresP = 'Ingrese sus nombres.';
@@ -7566,26 +7566,21 @@ function bindLr2(q0) {
     const cap = checkCaptcha(f, 'cap-lr2'); if (cap) er.captcha = cap;
     if (!showErrors(f, er)) return;
     if (rateLimited('lr2', 20)) return toast('Espere unos segundos antes de registrar otro reclamo.', 'err');
-    const btn = $('[data-send]', f); btn.disabled = true;
+    const btn=$('[data-send]',f),progress=$('[data-lr-progress]',f);const signature=JSON.stringify([v,file?[file.name,file.size,file.lastModified]:null]);if(!pending||pending.signature!==signature)pending={signature,key:crypto.randomUUID(),record:null};busy=true;const controls=[...f.elements].map(el=>[el,el.disabled]);controls.forEach(([el])=>el.disabled=true);progress.hidden=false;progress.scrollIntoView({block:'nearest'});btn.textContent='Registrando, espera un momento…';f.setAttribute('aria-busy','true');
     try {
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));let r=pending.record;if(!r){
       const adj = file ? await storeFile(file, 'rcl') : null;
-      const fecha = nowISO(); const y = String(new Date(fecha).getFullYear()); const C = DB.config.contadores.RCL; C[y] = (C[y] || 0) + 1;
-      let codigo = `RCL-${y}-${pad(C[y], 5)}`; const plazoDias = v.tipo === 'Queja' ? c.plazoQueja : c.plazoReclamo; const nombres = `${v.nombresP.trim()} ${v.apellidos.trim()}`;
-      const r = { id: uid(), codigo, fecha, tipo: v.tipo, nombres, nombresP: v.nombresP.trim(), apellidos: v.apellidos.trim(), tipoDoc: v.tipoDoc, numDoc: v.numDoc.trim(), correo: v.correo.trim(), telefono: (v.telefono || '').trim(), condicion: v.condicion, programaId: v.programaId === 'ninguno' ? '' : v.programaId, fechaHecho: v.fechaHecho, areaHecho: v.areaHecho || '',
+      const fecha = nowISO();
+      let codigo = ''; const plazoDias = v.tipo === 'Queja' ? c.plazoQueja : c.plazoReclamo; const nombres = `${v.nombresP.trim()} ${v.apellidos.trim()}`;
+      r = { id: uid(), codigo, fecha, tipo: v.tipo, nombres, nombresP: v.nombresP.trim(), apellidos: v.apellidos.trim(), tipoDoc: v.tipoDoc, numDoc: v.numDoc.trim(), correo: v.correo.trim(), telefono: (v.telefono || '').trim(), condicion: v.condicion, programaId: v.programaId === 'ninguno' ? '' : v.programaId, fechaHecho: v.fechaHecho, areaHecho: v.areaHecho || '',
         asunto: clamp(v.descripcion.trim().replace(/\s+/g, ' '), 80), descripcion: v.descripcion.trim(), pedido: v.pedido.trim(), adjunto: adj, estado: 'Recibido', plazoDias, vence: diasHabiles(fecha, plazoDias).due.toISOString(), responsable: { nombre: c.responsable, cargo: c.cargo, correo: c.correo }, area: '',
         historial: [{ fecha, usuario: 'portal', estado: 'Recibido', nota: `Registro desde el Libro de Reclamaciones Virtual. Responsable: ${c.responsable} (${c.cargo}).` }], notas: [], respuesta: '', notifInst: 'Pendiente', notifUser: 'Pendiente', anulado: false };
-      coll('reclamos').unshift(r);
-      if (!saveDB()) return;
-      codigo = r.codigo;
-      r.notifInst = mailOut(c.correo, `[${codigo}] Nuevo ${v.tipo.toLowerCase()} registrado`, `${r.nombres} (${r.condicion}) - ${r.descripcion}`);
-      if (DB.config.correoReclamos && DB.config.correoReclamos !== c.correo) mailOut(DB.config.correoReclamos, `[${codigo}] Copia: nuevo ${v.tipo.toLowerCase()}`, r.asunto);
-      r.notifUser = mailOut(r.correo, `Constancia de registro ${codigo}`, `Su ${v.tipo.toLowerCase()} fue registrado el ${fshort(fecha, true)} con el código ${codigo}. Plazo máximo de respuesta: ${plazoDias} días hábiles (hasta el ${fshort(r.vence)}).`);
-      audit('Registro', 'Libro de reclamaciones', codigo, `${v.tipo} registrado desde el portal. Notificación institucional: ${r.notifInst}`); saveDB();
+      pending.record=r;}await portalSubmitService('reclamos',r,pending.key);pending=null;const codigo=r.codigo,fecha=r.fecha,plazoDias=r.plazoDias;
       f.reset();
       const m = modal({ title: `${v.tipo} registrado`, body: `<div class="notice ok">Tu ${esc(v.tipo.toLowerCase())} fue registrado correctamente el ${fdate(fecha, true)}.</div><p>Tu código de seguimiento es:</p><div class="code-box">${codigo}</div><p>Código de verificación: <b class="mono">${esc(r.cargoCod || 'Pendiente de actualización')}</b></p><dl class="kv" style="margin-top:12px"><dt>Responsable</dt><dd>${esc(c.responsable)} · ${esc(c.cargo)}</dd><dt>Plazo de respuesta</dt><dd>${plazoDias} días hábiles (hasta el ${fdate(r.vence)})</dd></dl><p>Puedes descargar tu constancia. Correo de contacto: <b>${esc(r.correo)}</b>. Guarda tu código para consultar el estado.</p>`, foot: `<button class="btn sec" data-print>${S16('print')} Descargar constancia (PDF)</button><button class="btn" data-ok>Aceptar</button>` });
       $('[data-ok]', m.el).onclick = m.close; $('[data-print]', m.el).onclick = () => lrPdf(r, 'constancia');
-    } catch (err) { console.error(err); toast('No se pudo registrar. Intente nuevamente.', 'err'); }
-    finally { btn.disabled = false; }
+    } catch (err) {toast(err.message||'No se pudo confirmar el registro. Conserva los datos y reintenta el mismo envío.','err');}
+    finally {busy=false;controls.forEach(([el,disabled])=>el.disabled=disabled);progress.hidden=true;f.removeAttribute('aria-busy');btn.innerHTML=`${S16('send')} Enviar reclamo`;}
   };
   const q = $('[data-lrq2]');
   const show = r => { $('#lq2-r').innerHTML = r ? `<div class="pz-track" role="status"><div class="pz-track-h"><div><b class="mono">${esc(r.codigo)}</b> · ${esc(r.tipo)}<br><small>Registrado el ${fdate(r.fecha, true)}</small></div>${stBadge(r.anulado ? 'Anulado' : r.estado)}</div>${svTrack(['Recibido', 'Derivado', 'En atención', 'Atendido'], r.anulado ? 'Anulado' : r.estado, { Recibido: 0, Derivado: 1, 'En atención': 2, Atendido: 3, Cerrado: 3, Anulado: 0 })}<dl class="kv"><dt>Plazo</dt><dd>${lrSem(r)} · vence ${fdate(lrPlazo(r).due)}</dd>${r.area ? `<dt>Área que atiende</dt><dd>${esc(areaName(r.area))}</dd>` : ''}${r.respuesta ? `<dt>Respuesta</dt><dd style="white-space:pre-wrap">${esc(r.respuesta)}</dd>` : ''}</dl><ol class="pz-tl">${(r.historial || []).map(h => `<li><span>${fshort(h.fecha, true)}</span><b>${esc(h.estado)}</b></li>`).join('')}</ol><div style="margin-top:12px"><button type="button" class="btn sm sec" data-lrpdf>${S16('download')} Descargar constancia (PDF)</button></div></div>` : `<div class="notice warn" role="status">No se encontró un registro con ese código y documento. Verifique los datos de su constancia.</div>`; const b = $('[data-lrpdf]'); if (b && r) b.onclick = () => lrPdf(r, 'constancia'); };
@@ -7623,13 +7618,13 @@ async function lrPdf(r, kind) {
   y+=46;
   if(y>267){doc.addPage();y=20;}
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.8); doc.setTextColor(70);
-  doc.text(doc.splitTextToSize(`La formulación del reclamo no impide acudir a otras vías de solución de controversias ni es requisito previo para interponer una denuncia ante las autoridades competentes. El instituto dará respuesta en un plazo no mayor de ${lrPlazoDias(r)} días hábiles mediante el seguimiento del portal. El envío por correo está pendiente de habilitación. Consulte con el seguimiento y su documento o código de verificación.`, W - 2 * M), M, y + 4);
+  doc.text(doc.splitTextToSize(`La formulación del reclamo no impide acudir a otras vías de solución de controversias ni es requisito previo para interponer una denuncia ante las autoridades competentes. El instituto dará respuesta en un plazo no mayor de ${lrPlazoDias(r)} días hábiles mediante el seguimiento del portal. Los avisos por correo dependen de la configuración institucional. Consulte el seguimiento y su documento o código de verificación.`, W - 2 * M), M, y + 4);
   pdfPie(doc, `Libro de Reclamaciones Virtual · ${lrCfg().correo} · ${inst().direccion}`);
   downloadBlob(doc.output('blob'), `${kind === 'constancia' ? 'Constancia' : 'Hoja'}_${r.codigo}.pdf`);
 }
 
 /* ---------- Panel del Libro de reclamaciones ---------- */
-const lrTabs2 = a => tabsBar([['d', 'Resumen', '#/admin/reclamos'], ['l', 'Bandeja de reclamos', '#/admin/reclamos/bandeja'], ['n', 'Correo pendiente', '#/admin/reclamos/notificaciones'], ['c', 'Responsable y plazos', '#/admin/reclamos/config']], a);
+const lrTabs2 = a => tabsBar([['d', 'Resumen', '#/admin/reclamos'], ['l', 'Bandeja de reclamos', '#/admin/reclamos/bandeja'], ['n', 'Notificaciones por correo', '#/admin/reclamos/notificaciones'], ['c', 'Responsable y plazos', '#/admin/reclamos/config']], a);
 const baseReclamos = CUSTOM.reclamos, baseReclamoDet = reclamoDetalle;
 CUSTOM.reclamos = (parts) => {
   if (parts[2] === 'notificaciones') { const o = lrNotif(); o.html = o.html.replace(lrTabs('n'), lrTabs2('n')); return o; }
@@ -7669,7 +7664,7 @@ reclamoDetalle = function (id) {
     const d = $('[data-der]'); if (d) d.onclick = () => { const v = $('#lr-ar').value; if (!v) return toast('Seleccione el área.', 'err'); const a = areaOf(v); const ind = $('#lr-arn').value.trim(); const me = currentUser().usuario;
       r.area = v; if (r.estado === 'Recibido') r.estado = 'Derivado'; r.historial.push({ fecha: nowISO(), usuario: me, estado: r.estado, nota: `Derivado a ${areaName(v)}${ind ? ': ' + ind : ''}` });
       if (a) mailOut(a.correo, `[${r.codigo}] ${r.tipo} derivado para su atención`, `${r.nombres}: ${r.descripcion}${ind ? ' · Indicación: ' + ind : ''} · Vence: ${fshort(lrPlazo(r).due)}`);
-      audit('Derivación', 'Libro de reclamaciones', r.codigo, areaName(v)); stamp(r); if (saveDB()) { toast('Derivación registrada. El envío por correo está pendiente de configuración.', 'ok'); route(); } };
+      audit('Derivación', 'Libro de reclamaciones', r.codigo, areaName(v)); stamp(r); if (saveDB()) { toast('Derivación registrada. Avisos en cola para el solicitante y el área receptora.', 'ok'); route(); } };
   };
   return out;
 };
@@ -7754,7 +7749,7 @@ function bolsaEmpresas() {
     e.validada = ok; e.estadoVal = ok ? 'Aprobada' : 'Rechazada'; e.motivoRech = ok ? '' : motivo.trim(); e.valPor = me.usuario; e.fechaVal = new Date().toISOString().slice(0, 10);
     if (u && u.ixId) IX.notifyTo('u:' + u.ixId, ok ? 'Tu empresa fue aprobada: ya puedes publicar convocatorias' : 'Tu solicitud de empresa no fue aprobada: ' + e.motivoRech, 'bolsa');
     mailOut(e.correo, ok ? `Cuenta de empresa aprobada - Bolsa laboral ${inst().nombre}` : `Cuenta de empresa no aprobada - Bolsa laboral ${inst().nombre}`, ok ? `La empresa ${e.nom} fue validada por la ${c.responsable}. Ingrese con su RUC y contraseña.` : `Motivo: ${e.motivoRech}`);
-    IX.logAct(ok ? 'Aprobar empresa' : 'Rechazar empresa', 'Bolsa laboral', `${e.nom} (RUC ${e.ruc})${ok ? '' : ' · ' + e.motivoRech}`); if(!IX.persist())return false; toast(ok ? `${e.nom} aprobada. El correo está pendiente de configuración.` : `${e.nom} rechazada. El correo está pendiente de configuración.`, 'ok'); route();
+    IX.logAct(ok ? 'Aprobar empresa' : 'Rechazar empresa', 'Bolsa laboral', `${e.nom} (RUC ${e.ruc})${ok ? '' : ' · ' + e.motivoRech}`); if(!IX.persist())return false; toast(ok ? `${e.nom} aprobada. Aviso registrado en la cola de correo.` : `${e.nom} rechazada. Aviso registrado en la cola de correo.`, 'ok'); route();
   };
   return { html, after: () => {
     $$('[data-ef]').forEach(b => b.onclick = () => { st.f = b.dataset.ef; route(); });

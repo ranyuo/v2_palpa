@@ -25,6 +25,7 @@ require_once __DIR__.'/Services.php';
 require_once __DIR__.'/Academic.php';
 require_once __DIR__.'/Numbering.php';
 require_once __DIR__.'/Mail.php';
+require_once __DIR__.'/Notifications.php';
 require_once __DIR__.'/SmtpSettings.php';
 
 final class PortalApp
@@ -315,6 +316,7 @@ final class PortalApp
             AcademicDocuments::validate($previous,$data);PortalDomain::validate($previous,$data,$user);PortalDomain::syncCertificates($data);AcademicDocuments::sync($data);$this->validateBindings($data);
             $allAccounts=array_map($this->accountDto(...),$this->db()->query('SELECT * FROM intranet_users')->fetchAll());
             PortalDomain::notifications($previous,$data,$allAccounts);
+            PortalNotifications::changes($this->db(),$previous,$data,(int)$state['revision']+1,$allAccounts);
             $data['usuarios']=[];$data['__v']=14;$data['visitas']=$previous['visitas']??[];
             $changed=[];foreach($data as $key=>$value)if(!PortalPolicy::equal($value,$previous[$key]??null))$changed[]=$key;
             PortalAudit::changes($this,$previous,$data,$user);
@@ -354,16 +356,18 @@ final class PortalApp
         if(!preg_match('/^(10|15|17|20)[0-9]{9}$/',$r['ruc']))throw new PortalError(422,'RUC no válido.');
         $weights=[5,4,3,2,7,6,5,4,3,2];$sum=0;foreach($weights as $i=>$w)$sum+=(int)$r['ruc'][$i]*$w;$digit=11-$sum%11;if($digit===10)$digit=0;if($digit===11)$digit=1;
         if($digit!==(int)$r['ruc'][10])throw new PortalError(422,'El dígito verificador del RUC no es válido.');
-        return $this->transaction(function()use($r){
+        $result=$this->transaction(function()use($r){
             $state=$this->state(true);$data=json_decode($state['data'],true);
             if(PortalPolicy::find($data['academico']['empresas'],'ruc',$r['ruc']))throw new PortalError(422,'Ya existe una empresa con ese RUC.');
             $id=max([0,...array_column($data['academico']['empresas'],'id')])+1;
             $company=[...array_diff_key($r,['password'=>1]),'id'=>$id,'validada'=>false,'estadoVal'=>'Pendiente','fechaReg'=>date('Y-m-d')];
-            $data['academico']['empresas'][]=$company;PortalDomain::staff($data,'Empresa pendiente de validación: '.$company['nom'],'bolsa');$this->updateState($data,(int)$state['revision']+1);
+            $data['academico']['empresas'][]=$company;PortalNotifications::received($this->db(),'empresas',$company,$data);PortalDomain::staff($data,'Empresa pendiente de validación: '.$company['nom'],'bolsa');$this->updateState($data,(int)$state['revision']+1);
             PortalAudit::write($this,'Registrar empresa','academico.empresas',(string)$id);
             $this->createAccount(['username'=>$r['ruc'],'name'=>$r['nom'],'email'=>$r['correo'],'password'=>$r['password'],'role'=>'empresa','vin'=>'emp:'.$id,'dni'=>$r['ruc']],false);
             return ['company'=>$company,'username'=>$r['ruc'],'revision'=>(int)$state['revision']+1];
         });
+        try{$this->processMail(2,hash('sha256','empresas|'.$result['company']['id']));}catch(Throwable $error){error_log('Intranet Palpa: avisos de empresa pendientes en cola.');}
+        return $result;
     }
     public function interfaceEvent(array $input): array
     {
@@ -496,7 +500,7 @@ final class PortalApp
                 $days = (int)($cfg[$record['tipo'] === 'Queja' ? 'plazoQueja' : 'plazoReclamo'] ?? 15);
                 $record += ['plazoDias' => $days, 'vence' => $this->deadline($days, $data)->format(DATE_ATOM),
                     'responsable' => ['nombre' => $cfg['responsable'], 'cargo' => $cfg['cargo'], 'correo' => $cfg['correo']],
-                    'area' => '', 'notas' => [], 'respuesta' => '', 'notifInst' => 'Omitido', 'notifUser' => 'Omitido', 'anulado' => false];
+                    'area' => '', 'notas' => [], 'respuesta' => '', 'notifInst' => 'Ver panel', 'notifUser' => 'Ver panel', 'anulado' => false];
             }
             if ($type === 'expedientes') {
                 $data['config']['contadores']['DOC'][$year] = (int)($data['config']['contadores']['DOC'][$year] ?? 0) + 1;
@@ -523,6 +527,7 @@ final class PortalApp
                 $record['historial'] = [['fecha' => $record['fecha'], 'usuario' => 'portal', 'estado' => 'Recibido', 'nota' => 'Registro recibido desde el portal.']];
             }
             if($type==='expedientes')PortalMail::enqueue($this->db(),$record,$data);
+            if($type==='reclamos')PortalNotifications::received($this->db(),$type,$record,$data);
             $data[$type] = [$record, ...($data[$type] ?? [])];
             if(in_array($type,['mensajes','reclamos','expedientes'],true))PortalDomain::staff($data,'Nuevo registro: '.($record['codigo']??$record['numero']??$record['asunto']??$type),$type==='expedientes'?'mesa':$type);
             $this->updateState($data, (int)$state['revision'] + 1);
@@ -530,8 +535,9 @@ final class PortalApp
             $_SESSION['challenges'][$input['proof']['challenge_id']]['used_key']=$input['idempotency_key'];
             return ['record' => $record, 'status' => 201,'revision'=>(int)$state['revision']+1,'counters'=>$this->user()?($data['config']['contadores']??[]):null];
         });
-        if($type==='expedientes'){
-            try{$this->processMail(2,$result['record']['id']);}
+        if(in_array($type,['expedientes','reclamos'],true)){
+            $mailId=$type==='expedientes'?$result['record']['id']:hash('sha256',$type.'|'.$result['record']['id']);
+            try{$this->processMail(3,$mailId);}
             catch(Throwable $error){error_log('Intranet Palpa: cola de correo pendiente; revisar trabajador SMTP.');}
         }
         return $result;

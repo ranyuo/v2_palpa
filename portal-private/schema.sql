@@ -64,6 +64,9 @@ CREATE TABLE IF NOT EXISTS intranet_settings (
 CREATE TABLE IF NOT EXISTS intranet_mail (
     id CHAR(64) PRIMARY KEY,
     record_id CHAR(64) NOT NULL,
+    source_type VARCHAR(30) NOT NULL DEFAULT 'expedientes',
+    source_id VARCHAR(100) NOT NULL DEFAULT '',
+    event VARCHAR(40) NOT NULL DEFAULT 'registro',
     reference VARCHAR(100) NOT NULL,
     recipient VARCHAR(254) NOT NULL,
     subject VARCHAR(255) NOT NULL,
@@ -71,7 +74,7 @@ CREATE TABLE IF NOT EXISTS intranet_mail (
     status VARCHAR(20) NOT NULL DEFAULT 'Pendiente',
     attempts INT UNSIGNED NOT NULL DEFAULT 0,
     last_error VARCHAR(255) NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     next_attempt_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
     sent_at DATETIME NULL,
     INDEX (status,next_attempt_at), INDEX (record_id)

@@ -21,6 +21,6 @@ return [
         'username' => 'notificaciones@proyectos.pe',
         'password' => getenv('PALPA_SMTP_PASSWORD') ?: '',
         'from_email' => 'notificaciones@proyectos.pe',
-        'from_name' => 'Mesa de Partes · IES Público Palpa',
+        'from_name' => 'Notificaciones · IES Público Palpa',
     ],
 ];

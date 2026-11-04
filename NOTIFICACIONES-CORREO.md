@@ -1,4 +1,4 @@
-# Notificaciones de Mesa de Partes por Gmail Workspace
+# Notificaciones institucionales por Gmail Workspace
 
 Al registrar un **nuevo trámite**, el servidor guarda dos mensajes junto al
 expediente: una confirmación al correo del solicitante y un aviso al correo
@@ -17,7 +17,7 @@ receptor afecta a los nuevos registros, no redirige mensajes ya encolados.
    `public_html/` y `portal-private/`, incluido `portal-private/vendor/phpmailer/`.
    Conserva tu `portal-private/config.php` y los archivos privados.
 2. En instalaciones existentes, ejecuta `/actualizar.php` con la clave privada.
-   La versión 6 del esquema crea `intranet_mail` sin borrar los expedientes.
+   La versión 7 del esquema amplía `intranet_mail` con módulo, origen y evento, sin borrar los expedientes ni los mensajes anteriores.
    En instalaciones nuevas, `/install.php` crea también esta tabla.
 3. Revoca la contraseña de aplicación que se compartió en la captura. Genera una
    nueva desde la cuenta **notificaciones@proyectos.pe**. No uses la contraseña
@@ -63,8 +63,9 @@ receptor afecta a los nuevos registros, no redirige mensajes ya encolados.
    ```
 
    No uses una URL pública para ejecutar el trabajador. Si usas `PORTAL_CONFIG_FILE`,
-   configúralo también en la tarea cron. El envío inicial se intenta al registrar
-   el trámite; el cron procesa los avisos pendientes y sus reintentos.
+   configúralo también en la tarea cron. El envío inicial se intenta al registrar trámites, reclamos y empresas; el cron
+   procesa los avisos restantes, los seguimientos y los eventos de Bolsa Laboral.
+   **El cron cada minuto es necesario para estos eventos y sus reintentos.**
 6. Comprueba que PHP tenga OpenSSL, PDO MySQL, Ctype y las extensiones habituales
    de la aplicación. Hostinger debe permitir la conexión SMTP saliente. Si el
    puerto 587 está bloqueado, consulta las restricciones del plan; también se
@@ -101,9 +102,48 @@ los errores se conservan para revisión. La cola no se incluye en respaldos port
 ni se recrea desde expedientes anteriores; al restaurar un respaldo se cancela la
 cola existente. Pausa cron durante restauraciones y mantenimiento de la base.
 
-Esta implementación cubre el **registro inicial de trámites de Mesa de Partes**.
-Los avisos por cambios de estado, derivaciones, reclamos y bolsa laboral todavía
-no se envían por este transporte.
+## Eventos implementados y destinatarios
+
+Todos los mensajes usan la misma cuenta SMTP. Puedes usar el nombre visible
+“Notificaciones · IES Público Palpa”; si ya tenías otro nombre guardado, puedes
+cambiarlo desde el formulario SMTP.
+
+| Módulo / evento | Destinatarios |
+| --- | --- |
+| Trámite recibido | Solicitante y Mesa de Partes |
+| Trámite cambia de estado, se responde o se anula | Solicitante |
+| Trámite se deriva a otra área | Solicitante y correo del área receptora |
+| Reclamo o queja registrados | Ciudadano y responsables configurados de Reclamos |
+| Reclamo cambia de estado, se responde o se anula | Ciudadano; la respuesta formal solo se envía a su correo |
+| Reclamo derivado | Ciudadano y correo del área receptora |
+| Empresa registrada | Empresa y responsable de Bolsa Laboral |
+| Empresa aprobada, rechazada o suspendida | Empresa |
+| Oferta propuesta / por validar | Empresa y responsable de Bolsa Laboral |
+| Oferta publicada o cambia de estado | Empresa |
+| Oferta cerrada o rechazada con postulaciones existentes | Empresa y postulantes de esa oferta |
+| Postulación registrada | Postulante, empresa y responsable de Bolsa Laboral |
+| Postulación cambia de estado | Postulante y empresa |
+
+Los correos responsables se cambian en **Configuración de la intranet**. El de
+Reclamos se comparte con **Responsable y plazos** del módulo, y el de Bolsa con
+la configuración de Bolsa Laboral. Los destinatarios se resuelven en el servidor;
+una cuenta sin permisos no puede originar una selección, aprobación o sus correos.
+
+Los correos coincidentes reciben un solo mensaje por evento. Guardar sin cambiar
+el evento no envía otro aviso. Las notas internas, las ediciones del perfil, los
+currículos y los adjuntos privados no se envían por este canal. La postulación
+usa el correo de la cuenta activa vinculada al estudiante, o el del maestro si
+no existe cuenta vinculada. Las cuentas inactivas no reciben ese aviso personal.
+
+Si falta el correo institucional de Reclamos o Bolsa, el panel muestra una
+advertencia y se conserva el registro y su notificación personal cuando existe
+un correo válido. Configura los destinatarios antes de habilitar el uso real.
+El panel **Notificaciones por correo** muestra módulo, evento y referencia, con
+los estados reales y el botón de reintento para errores. Los indicadores heredados
+que dependían del correo simulado no constituyen una confirmación de entrega.
+
+Consulta [ANALISIS-NOTIFICACIONES.md](ANALISIS-NOTIFICACIONES.md) para los demás
+procesos analizados y las recomendaciones pendientes.
 
 ## Pruebas de desarrollo sin enviar correos reales
 
@@ -120,6 +160,9 @@ PORTAL_BASE_URL=http://127.0.0.1:8084 node tests/browser-mail-settings.cjs
 `tests/smtp-settings.php` prueba el cifrado, los permisos y la conservación de la contraseña.
 `tests/browser-smtp-form.cjs` prueba el formulario y restaura el archivo privado al terminar;
 requiere `PORTAL_CONFIG_FILE` y `PORTAL_BASE_URL` de pruebas.
+
+`tests/module-notifications.php` comprueba los eventos y permisos de Reclamos y Bolsa,
+la privacidad, las transacciones y los duplicados.
 
 `tests/mail.php` requiere Python 3 y el ejecutable OpenSSL. Inicia un SMTP local con
 un certificado de prueba confiado explícitamente para ese servidor, usa credenciales

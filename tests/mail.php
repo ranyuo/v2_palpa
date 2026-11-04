@@ -65,6 +65,14 @@ try{
  $down=new PortalApp([...$config,'smtp'=>[...$smtp,'password'=>'incorrecta']]);$accepted=$down->submit('expedientes',input());$aid=$accepted['record']['id'];
  check($accepted['status']===201,'Fallo de autenticación SMTP no pierde el trámite');
  $q->execute([$aid]);check(array_unique(array_column($q->fetchAll(),'status'))===['Error'],'Fallo de entrega queda disponible para reintento');
+ $delivery=new PortalMail($smtp);$current=$app->bootstrap()['data'];
+ foreach(['reclamos','empresas','ofertas','postulaciones'] as $module){
+  $source=in_array($module,['reclamos'],true)?$current[$module][0]:$current['academico'][$module][0];
+  PortalMail::queue($db,$module,(string)$source['id'],'prueba','smtp-test','destino@example.test','QA-'.$module,'Prueba de transporte','Mensaje de prueba sin información privada.');
+  $delivery->process($db,50,hash('sha256',$module.'|'.$source['id']));
+  $query=$db->prepare("SELECT status FROM intranet_mail WHERE source_type=? AND source_id=? AND event='prueba'");$query->execute([$module,(string)$source['id']]);check($query->fetchColumn()==='Enviado','SMTP real local entrega el evento de '.$module);
+ }
+ PortalMail::queue($db,'empresas','999998','prueba','smtp-test','destino@example.test','QA-AUSENTE','Prueba de cancelación','Sin fuente válida.');check($delivery->process($db,2,hash('sha256','empresas|999998'))['skipped']===1,'Fuente inexistente cancela la entrega tras restauración o eliminación');
  $status=$mail->status($app);check(!str_contains(json_encode($status),'solo-prueba-local'),'Panel no expone contraseña SMTP');
  $app->logout();try{$mail->status($app);throw new RuntimeException('Panel público');}catch(PortalError $e){check($e->status===403,'Cola privada no accesible sin sesión');}
  $app->login(['username'=>'atencion','password'=>'PruebaIntranet-2026!']);try{PortalMail::retry($app,['id'=>$failedRow['id']]);throw new RuntimeException('Reintento sin permiso');}catch(PortalError $e){check($e->status===403,'Personal sin administración no puede reintentar');}

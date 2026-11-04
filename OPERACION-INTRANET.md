@@ -158,3 +158,21 @@ asegura un tiempo de respuesta de Gmail.
 La regresión `node tests/browser-submission-progress.cjs` sobre el servidor de
 pruebas simula espera, respuesta perdida y reintento, y comprueba el indicador,
 el bloqueo de duplicados y la recuperación del cargo existente.
+
+## Notificaciones del Libro de Reclamaciones y Bolsa Laboral
+
+La configuración SMTP es común a todos los módulos. Completa en Configuración
+el **correo responsable de reclamos** y el **correo responsable de Bolsa Laboral**.
+El panel de notificaciones distingue módulo, evento y referencia. Programa
+`portal-private/mail-worker.php` cada minuto para entregar seguimientos,
+respuestas, aprobaciones, ofertas y postulaciones, además de los reintentos.
+
+El registro de un reclamo presenta un indicador de proceso y permite reintentar
+el mismo envío sin duplicarlo si se pierde la respuesta. Las acciones de atención
+se notifican desde el servidor después de guardar; las notas internas no se envían.
+El registro de empresas también muestra el estado de proceso. Las contraseñas y
+los currículos permanecen privados y no se adjuntan a los avisos.
+
+Actualiza el esquema a la versión 7 con `/actualizar.php` antes de usar el código
+nuevo sobre una instalación existente. Conserva `config.php`, su `install_key` y
+el archivo SMTP cifrado. Los destinatarios actuales de cada módulo se conservan.

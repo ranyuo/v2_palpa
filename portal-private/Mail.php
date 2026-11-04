@@ -25,20 +25,38 @@ final class PortalMail
             'mesa'=>[$data['config']['mpv']['correo'], '['.$reference.'] Nuevo trámite registrado',
                 "Se ha registrado un nuevo trámite en $institution.\n\nExpediente: $reference\nSolicitante: {$record['nombres']}\nCorreo del solicitante: {$record['correo']}\nTipo: {$record['tipoTramite']}\nAsunto: {$record['asunto']}\nÁrea de destino: {$record['areaDestino']}\n\nIngrese a la intranet para revisar el expediente y sus adjuntos privados.\n"],
         ];
-        $insert=$db->prepare('INSERT INTO intranet_mail (id,record_id,reference,recipient,subject,body,created_at,next_attempt_at) VALUES (?,?,?,?,?,?,UTC_TIMESTAMP(),UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE id=id');
+        $insert=$db->prepare('INSERT INTO intranet_mail (id,record_id,reference,recipient,subject,body,created_at,next_attempt_at) VALUES (?,?,?,?,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE id=id');
         foreach($messages as $kind=>[$to,$subject,$body]){
             if(!is_string($to)||strlen($to)>254||!filter_var($to,FILTER_VALIDATE_EMAIL))throw new PortalError(422,'Configura un correo receptor válido para Mesa de Partes.');
             $insert->execute([hash('sha256',$record['id'].'|'.$kind),$record['id'],$reference,$to,$subject,$body]);
         }
     }
 
+    public static function queue(PDO $db,string $module,string $sourceId,string $event,string $version,string $to,string $reference,string $subject,string $body): void
+    {
+        preg_match('/^.{0,200}/us',$subject,$short);$subject=$short[0]??'Notificación institucional';
+        if(strlen($body)>60000){preg_match('/^.{0,14000}/us',$body,$short);$body=($short[0]??'')."\nMensaje resumido. Consulta el contenido completo en la plataforma.\n";}
+        $batch=hash('sha256',$module.'|'.$sourceId);
+        $id=hash('sha256',$batch.'|'.$event.'|'.$version.'|'.$to);
+        $insert=$db->prepare('INSERT INTO intranet_mail (id,record_id,source_type,source_id,event,reference,recipient,subject,body,created_at,next_attempt_at) VALUES (?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE id=id');
+        $insert->execute([$id,$batch,$module,$sourceId,$event,$reference,$to,$subject,'Evento registrado: '.date(DATE_ATOM)."\n".$body]);
+    }
+
     /** No se incluyen credenciales ni cuerpos de correos en el panel. */
     public function status(PortalApp $app): array
     {
         $app->requireAdmin();
-        $rows=$app->db()->query('SELECT id,reference,recipient,status,attempts,last_error,created_at,sent_at FROM intranet_mail ORDER BY created_at DESC,id LIMIT 30')->fetchAll();
+        $rows=$app->db()->query('SELECT id,source_type,event,reference,recipient,status,attempts,last_error,created_at,sent_at FROM intranet_mail ORDER BY created_at DESC,id LIMIT 30')->fetchAll();
         return ['enabled'=>($this->config['enabled']??false)===true,'configured'=>$this->ready(),
-            'from'=>$this->config['from_email']??'notificaciones@proyectos.pe','messages'=>$rows];
+            'from'=>$this->config['from_email']??'notificaciones@proyectos.pe','messages'=>$rows,'warnings'=>$this->warnings($app)];
+    }
+
+    private function warnings(PortalApp $app): array
+    {
+        $raw=$app->db()->query('SELECT data FROM intranet_state WHERE id=1')->fetchColumn();$data=json_decode($raw,true,flags:JSON_THROW_ON_ERROR);$warnings=[];
+        if(empty($data['config']['lr']['correo'])&&empty($data['config']['correoReclamos']))$warnings[]='Configura el correo responsable del Libro de Reclamaciones.';
+        if(empty($data['config']['bolsa']['correo']))$warnings[]='Configura el correo responsable de Bolsa Laboral.';
+        return $warnings;
     }
 
     public static function retry(PortalApp $app,array $input): array
@@ -48,7 +66,7 @@ final class PortalMail
         $update=$app->db()->prepare("UPDATE intranet_mail SET status='Pendiente',attempts=0,next_attempt_at=UTC_TIMESTAMP(),last_error=NULL WHERE id=? AND status='Error'");
         $update->execute([$id]);
         if(!$update->rowCount())throw new PortalError(409,'Solo se pueden reintentar notificaciones con error.');
-        PortalAudit::write($app,'Reintentar notificación','Mesa de partes',$id);
+        PortalAudit::write($app,'Reintentar notificación','Notificaciones',$id);
         return ['ok'=>true];
     }
 
@@ -70,7 +88,7 @@ final class PortalMail
                 // Una copia restaurada no debe notificar trámites ausentes de su estado.
                 $state=$db->query('SELECT data FROM intranet_state WHERE id=1')->fetchColumn();
                 $data=$state?json_decode($state,true,flags:JSON_THROW_ON_ERROR):[];
-                if(!PortalPolicy::find($data['expedientes']??[],'id',$row['record_id'])){
+                if(!PortalNotifications::exists($data,$row)){
                     $db->prepare("UPDATE intranet_mail SET status='Cancelado',next_attempt_at=NULL WHERE id=?")->execute([$row['id']]);$result['skipped']++;continue;
                 }
                 $attempt=(int)$row['attempts']+1;

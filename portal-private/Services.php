@@ -24,10 +24,11 @@ final class PortalServices
             if($changed||$notes){$note=implode(' · ',$notes);if($collection==='expedientes'&&in_array($r['estado'],['Observado','Atendido'],true)&&$note==='')throw new PortalError(422,'Indica la observación del expediente.');$r['historial'][]=['fecha'=>date(DATE_ATOM),'usuario'=>$user['usuario'],'estado'=>$r['estado'],'nota'=>$note?:'Actualización institucional registrada en el servidor.'];}
             if(($before['respuesta']??'')!==($r['respuesta']??'')){$r['atendidoPor']=$user['usuario'];$r['atendidoEn']=date(DATE_ATOM);}
             $oldNotes=$before['notas']??[];$newNotes=$r['notas']??[];$r['notas']=$oldNotes;foreach($newNotes as $note)if(is_array($note)&&!in_array($note,$oldNotes,true)&&!empty($note['texto']))$r['notas'][]=['fecha'=>date(DATE_ATOM),'usuario'=>$user['usuario'],'texto'=>substr((string)$note['texto'],0,5000)];
-            if($collection!=='mensajes'){$r['notifInst']='Omitido';$r['notifUser']='Omitido';}
+            if($collection!=='mensajes'){$r['notifInst']='Ver panel';$r['notifUser']='Ver panel';}
         }unset($r);
         foreach(['mensajes','reclamos','expedientes'] as $collection)if($user['rol']!=='admin')foreach($old[$collection] as $r)if(!PortalPolicy::find($new[$collection],'id',$r['id']))throw new PortalError(403,'No puedes eliminar registros originales.');
         foreach(['inst','redes','seo','whatsapp','limites','mpv','lr','bolsa','contadores'] as $key)if(isset($old['config'][$key])&&(!isset($new['config'][$key])||!is_array($new['config'][$key])))throw new PortalError(422,'Configuración incompleta: '.$key.'.');
+        foreach([[$new['config']['lr']['correo']??'','Reclamos'],[$new['config']['correoReclamos']??'','Reclamos'],[$new['config']['bolsa']['correo']??'','Bolsa Laboral']] as [$email,$label])if(!is_string($email)||($email!==''&&(strlen($email)>254||!filter_var($email,FILTER_VALIDATE_EMAIL))))throw new PortalError(422,'Correo receptor no válido: '.$label.'.');
         PortalNumbering::validate($old,$new);
         if(!PortalPolicy::equal($old['config']['mpv'],$new['config']['mpv'])){
             $email=$new['config']['mpv']['correo']??null;

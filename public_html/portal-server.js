@@ -16,22 +16,23 @@ function portalRequest(method,url,body) {
   return result;
 }
 // El registro público no debe bloquear el navegador mientras carga archivos o espera SMTP.
-async function portalSubmitExpediente(record,key){
+async function portalSubmitService(type,record,key){
   let response,result;
   try{
-    response=await fetch(portalURL('/api/solicitudes/expedientes'),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':portalBootstrap.csrf},body:JSON.stringify({record,idempotency_key:key,proof:portalProofs.expedientes})});
+    response=await fetch(portalURL('/api/solicitudes/'+type),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':portalBootstrap.csrf},body:JSON.stringify({record,idempotency_key:key,proof:portalProofs[type]})});
     result=await response.json();
   }catch{throw new Error('No se pudo confirmar la respuesta del servidor. Conserva los datos y vuelve a intentar el mismo envío para recuperar tu cargo.');}
   if(!response.ok)throw new Error(result.message||'No se pudo registrar el trámite. Revisa los datos e inténtalo nuevamente.');
-  if(!result.record?.id||!result.record?.numero)throw new Error('La respuesta no incluyó el cargo. Conserva los datos y vuelve a intentar el mismo envío.');
+  if(!result.record?.id||!(result.record?.numero||result.record?.codigo))throw new Error('La respuesta no incluyó el cargo. Conserva los datos y vuelve a intentar el mismo envío.');
   Object.assign(record,result.record);Object.defineProperty(record,'__serverSaved',{value:true,configurable:true});
-  portalKnown.add('expedientes:'+record.id);
-  const existing=DB.expedientes.find(r=>r.id===record.id);if(existing)Object.assign(existing,result.record);else DB.expedientes.unshift(record);
-  if(!portalBaseline.expedientes.some(r=>r.id===record.id))portalBaseline.expedientes.unshift(structuredClone(result.record));
-  RATE.mpv=Date.now();
+  portalKnown.add(type+':'+record.id);
+  const existing=DB[type].find(r=>r.id===record.id);if(existing)Object.assign(existing,result.record);else DB[type].unshift(record);
+  if(!portalBaseline[type].some(r=>r.id===record.id))portalBaseline[type].unshift(structuredClone(result.record));
+  RATE[type==='expedientes'?'mpv':'lr2']=Date.now();
   if(currentUser()){portalRevision=result.revision;if(result.counters){DB.config.contadores=structuredClone(result.counters);portalBaseline.config.contadores=structuredClone(result.counters);}}
   return result.record;
 }
+function portalSubmitExpediente(record,key){return portalSubmitService('expedientes',record,key);}
 function portalMerge(target,source) {
   for(const key of Object.keys(target))if(!(key in source))delete target[key];
   for(const [key,value] of Object.entries(source)){
@@ -141,7 +142,7 @@ const portalOriginalAdmin=renderAdmin;
 renderAdmin=function(parts,query){if(currentUser()?.rol==='admin'&&parts[1]==='respaldo')return {html:admHead('Respaldos y restauración','Crea, restaura y programa copias completas de contenido, cuentas y archivos.','','download')+`<section class="panel"><div class="pb"><a class="btn" href="/respaldos.php">Administrar respaldos y restauración</a><p>Las copias se guardan en la carpeta privada del portal.</p></div></section>`};if(currentUser()&&parts[1]==='perfil'){location.href='/accounts.php';return {html:''};}const out=portalOriginalAdmin(parts,query);if(currentUser()?.rol==='admin'&&parts[1]==='auditoria')out.html=`<p><a class="btn" href="/auditoria.php">Consultar y exportar el historial completo</a></p>`+out.html;return out;};
 IXHOST.createStudentAccount=function(student){try{const result=portalRequest('POST','/api/cuentas',{action:'student',student_id:student.id});DB.usuarios.push(result.user);portalBaseline.usuarios=structuredClone(DB.usuarios);return {usuario:result.user.usuario,pass:result.temporary_password,rolLabel:ROLES[result.user.rol].label};}catch(error){return {error:error.message};}};
 IXHOST.defaultPermissions=function(){return portalBootstrap.data.academico.perms;};
-IXHOST.registerCompany=function(values){return portalRequest('POST','/api/empresas',{...values,password:values.pass});};
+IXHOST.registerCompany=async function(values){const response=await fetch(portalURL('/api/empresas'),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':portalBootstrap.csrf},body:JSON.stringify({...values,password:values.pass})});const result=await response.json();if(!response.ok)throw new Error(result.message||'No se pudo registrar la empresa.');return result;};
 async function portalUpload(file){
   const body=new FormData();body.append('file',file);if(!currentUser()){const purpose=document.querySelector('#cap-mpv,#cap-mp')?'expedientes':'reclamos';body.append('purpose',purpose);body.append('proof',JSON.stringify(portalProofs[purpose]||{}));}
   const response=await fetch(portalURL('/api/archivos'),{method:'POST',headers:{'Accept':'application/json','X-CSRF-TOKEN':portalBootstrap.csrf},body});let data;

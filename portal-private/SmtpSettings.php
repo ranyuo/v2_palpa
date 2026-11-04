@@ -20,7 +20,7 @@ final class SmtpSettings
     {
         $base=['enabled'=>false,'host'=>'smtp.gmail.com','port'=>587,'encryption'=>'tls',
             'username'=>'notificaciones@proyectos.pe','from_email'=>'notificaciones@proyectos.pe',
-            'from_name'=>'Mesa de Partes · IES Público Palpa','password'=>'',...($this->config['smtp']??[])];
+            'from_name'=>'Notificaciones · IES Público Palpa','password'=>'',...($this->config['smtp']??[])];
         $path=$this->path();if($path===null||!file_exists($path))return $base;
         try{
             $raw=@file_get_contents($path);if(!is_string($raw))throw new RuntimeException();

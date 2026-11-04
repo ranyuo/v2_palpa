@@ -7079,7 +7079,7 @@ function pzEnsure() {
   if (!DB || !DB.config) return;
   const c = DB.config; c.contadores = c.contadores || {};
   ['LR', 'EXP', 'MPV', 'DOC', 'RCL'].forEach(k => { c.contadores[k] = c.contadores[k] || {}; });
-  c.mpv = Object.assign({ horaIni: '13:00', horaFin: '20:00', dias: 'Lunes a viernes', maxMB: 40, maxArchivos: 5, tipos: MPV_TIPOS.slice(), formatos: MPV_FORMATOS.map(f => f[0]), feriados: FERIADOS_2026.slice(), plazos: Object.assign({}, MPV_PLAZOS), correo: 'ranjoumisael@gmail.com', telefono: '056-316056', prefijo: 'MPV-IESPALPA' }, c.mpv || {});
+  c.mpv = Object.assign({ horaIni: '13:00', horaFin: '20:00', dias: 'Lunes a viernes', maxMB: 40, maxArchivos: 5, tipos: MPV_TIPOS.slice(), formatos: MPV_FORMATOS.map(f => f[0]), feriados: FERIADOS_2026.slice(), plazos: Object.assign({}, MPV_PLAZOS), correo: 'ranjoumisael@gmail.com', telefono: '056-316056', prefijo: 'MPV-IESPALPA', digitos: 6 }, c.mpv || {});
   c.lr = Object.assign({}, LR_DEF, c.lr || {});
   c.bolsa = Object.assign({}, BOLSA_DEF, c.bolsa || {});
   Object.assign(EXP_PLAZOS, c.mpv.plazos);
@@ -7241,7 +7241,7 @@ function mpvForm() {
   </form>`;
 }
 function mpvConsulta() {
-  return `<form class="card cb pz-qf" data-mpvq novalidate><div class="pz-qf-h">${sic('search', 20)}<div><h2>Consultar el estado de mi expediente</h2><small>Ingresa el N.º de expediente de tu cargo y tu DNI/RUC o el código de verificación.</small></div></div><div class="form-grid"><div class="field"><label for="mq-n">N.º de expediente</label><input id="mq-n" name="numero" placeholder="${esc(mpvCfg().prefijo)}-${yearNow()}-000001" autocomplete="off"></div><div class="field"><label for="mq-d">N.º de documento de identidad o código de verificación</label><input id="mq-d" name="doc" placeholder="DNI/RUC o código del cargo" autocomplete="off"></div><div class="full"><button class="btn sec">${S16('search')} Consultar estado</button></div></div><div id="mq-r"></div></form>`;
+  return `<form class="card cb pz-qf" data-mpvq novalidate><div class="pz-qf-h">${sic('search', 20)}<div><h2>Consultar el estado de mi expediente</h2><small>Ingresa el N.º de expediente de tu cargo y tu DNI/RUC o el código de verificación.</small></div></div><div class="form-grid"><div class="field"><label for="mq-n">N.º de expediente</label><input id="mq-n" name="numero" placeholder="${esc(mpvCfg().prefijo)}-${yearNow()}-${pad(1,mpvCfg().digitos||6)}" autocomplete="off"></div><div class="field"><label for="mq-d">N.º de documento de identidad o código de verificación</label><input id="mq-d" name="doc" placeholder="DNI/RUC o código del cargo" autocomplete="off"></div><div class="full"><button class="btn sec">${S16('search')} Consultar estado</button></div></div><div id="mq-r"></div></form>`;
 }
 function mpvInfo() {
   const c = mpvCfg(); const as = areasAll().filter(a => a.activo);
@@ -7297,7 +7297,7 @@ function bindMpv(q0) {
       const archivos = []; for (const x of files) archivos.push(await storeFile(x, 'mpv'));
       const fecha = nowISO(); const rec = recepcionDe(fecha); const y = String(new Date(fecha).getFullYear());
       const C = DB.config.contadores; C.MPV[y] = (C.MPV[y] || 0) + 1; C.DOC[y] = (C.DOC[y] || 0) + 1;
-      let numero = `${c.prefijo}-${y}-${pad(C.MPV[y], 6)}`, numDocumento = `DOC-${y}-${pad(C.DOC[y], 6)}`;
+      let numero = `${c.prefijo}-${y}-${pad(C.MPV[y], c.digitos||6)}`, numDocumento = `DOC-${y}-${pad(C.DOC[y], 6)}`;
       const u = currentUser(); const nombres = jur ? v.razon.trim() : `${v.nombresP.trim()} ${v.apellidos.trim()}`;
       const x = { id: uid(), numero, numDocumento, fecha, fechaRecepcion: rec.fecha.toISOString(), enHorario: rec.enHorario, usuarioRegistro: u ? `${u.usuario} (${u.nombre})` : `Ciudadano – portal web (${v.tipoDoc} ${v.numDoc.trim()})`, canal: 'Mesa de Partes Virtual',
         tipoPersona: v.tipoPersona, nombres, nombresP: jur ? '' : v.nombresP.trim(), apellidos: jur ? '' : v.apellidos.trim(), tipoDoc: v.tipoDoc, numDoc: v.numDoc.trim(), correo: v.correo.trim(), telefono: v.telefono.trim(), direccion: (v.direccion || '').trim(),
@@ -7440,9 +7440,14 @@ function mpvAreasAdm() {
   return { html };
 }
 function mpvConfigAdm() {
-  const c = mpvCfg(); const canEdit = currentUser().rol === 'admin' || can('config');
+  const c = mpvCfg(); const canEdit = currentUser().rol === 'admin' || can('config'); const year=String(portalBootstrap.numberingYear||yearNow()); const next=(DB.config.contadores.MPV[year]||0)+1;
   const html = admHead('Mesa de partes virtual', 'Horario de atención, tipos de documento admitidos, formatos y tamaño de archivos, feriados y plazos de atención.', '', 'inbox', [['Mesa de partes', '#/admin/expedientes'], ['Configuración']]) + mpTabs('c')
     + `<form class="panel" data-mpvcfg><div class="pb"><div class="form-grid">
+      <div class="field full"><h3>Código y correlativo del expediente</h3><p class="note">Formato: CÓDIGO-AÑO-CORRELATIVO. Se aplica a nuevos expedientes; los anteriores conservan su número. La secuencia es anual.</p></div>
+      <div class="field"><label for="mc-prefix">Código / prefijo del expediente</label><input id="mc-prefix" name="prefijo" required maxlength="40" pattern="[A-Z0-9][A-Z0-9-]{0,39}" value="${esc(c.prefijo)}"></div>
+      <div class="field"><label for="mc-digits">Dígitos del correlativo</label><input id="mc-digits" name="digitos" type="number" required min="1" max="9" value="${c.digitos||6}"><small>Se completa con ceros a la izquierda, sin truncar el número.</small></div>
+      <div class="field"><label for="mc-next">Siguiente correlativo (${year})</label><input id="mc-next" name="siguiente" type="number" required min="${next}" max="999999999" value="${next}"><small>Puedes avanzar la secuencia, pero no retroceder a números ya utilizados.</small></div>
+      <div class="field full"><span>Vista previa: <b class="mono" data-number-preview></b></span></div>
       <div class="field"><label for="mc-d">Días de atención</label><input id="mc-d" name="dias" value="${esc(c.dias)}"></div>
       <div class="field"><label for="mc-i">Hora de inicio</label><input id="mc-i" name="horaIni" type="time" value="${esc(c.horaIni)}"></div>
       <div class="field"><label for="mc-f">Hora de cierre</label><input id="mc-f" name="horaFin" type="time" value="${esc(c.horaFin)}"></div>
@@ -7453,15 +7458,16 @@ function mpvConfigAdm() {
       <div class="field"><label for="mc-t">Tipos de documento (uno por línea)</label><textarea id="mc-t" name="tipos" rows="13">${esc(c.tipos.join('\n'))}</textarea></div>
       <div class="field"><label for="mc-p">Plazo de atención por tipo (días hábiles, “Tipo = días”)</label><textarea id="mc-p" name="plazos" rows="13">${esc(c.tipos.map(t => `${t} = ${c.plazos[t] || 10}`).join('\n'))}</textarea></div>
       <div class="field full"><label for="mc-h">Feriados y días no laborables (AAAA-MM-DD, uno por línea)</label><textarea id="mc-h" name="feriados" rows="5">${esc(c.feriados.join('\n'))}</textarea><div class="hint">Los documentos presentados en estas fechas se consideran recibidos el siguiente día hábil.</div></div>
-      <div class="full" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span class="note">Numeración: <b class="mono">${esc(c.prefijo)}-${yearNow()}-${pad((DB.config.contadores.MPV[String(yearNow())] || 0) + 1, 6)}</b> (siguiente) · <b class="mono">DOC-${yearNow()}-${pad((DB.config.contadores.DOC[String(yearNow())] || 0) + 1, 6)}</b></span>${canEdit ? '<button class="btn">Guardar configuración</button>' : '<span class="note">Solo el administrador puede modificar esta configuración.</span>'}</div>
+      <div class="full" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span class="note">Numeración: <b class="mono">${esc(c.prefijo)}-${year}-${pad(next, c.digitos||6)}</b> (siguiente) · <b class="mono">DOC-${yearNow()}-${pad((DB.config.contadores.DOC[String(yearNow())] || 0) + 1, 6)}</b></span>${canEdit ? '<button class="btn">Guardar configuración</button>' : '<span class="note">Solo el administrador puede modificar esta configuración.</span>'}</div>
     </div></div></form>`;
-  return { html, after: () => { const f = $('[data-mpvcfg]'); f.onsubmit = e => { e.preventDefault(); if (!canEdit) return;
+  return { html, after: () => { const f = $('[data-mpvcfg]'); const preview=()=>{f.querySelector('[data-number-preview]').textContent=f.prefijo.value+'-'+year+'-'+String(f.siguiente.value).padStart(Math.max(1,Math.min(9,+f.digitos.value||6)),'0');};for(const name of ['prefijo','digitos','siguiente'])f.elements[name].addEventListener('input',preview);preview(); f.onsubmit = e => { e.preventDefault(); if (!canEdit) return;
     const tipos = f.tipos.value.split('\n').map(s => s.trim()).filter(Boolean); if (!tipos.length) return toast('Registre al menos un tipo de documento.', 'err');
     const fmts = $$('[name="fmt"]:checked', f).map(i => i.value); if (!fmts.length) return toast('Seleccione al menos un formato.', 'err');
     if (hm(f.horaFin.value) <= hm(f.horaIni.value)) return toast('La hora de cierre debe ser posterior a la de inicio.', 'err');
     const fer = f.feriados.value.split('\n').map(s => s.trim()).filter(Boolean); const bad = fer.find(s => !/^\d{4}-\d{2}-\d{2}$/.test(s)); if (bad) return toast('Fecha de feriado no válida: ' + bad, 'err');
     const plazos = {}; f.plazos.value.split('\n').forEach(l => { const m = l.split('='); if (m.length === 2 && +m[1] > 0) plazos[m[0].trim()] = Math.round(+m[1]); }); tipos.forEach(t => { if (!plazos[t]) plazos[t] = 10; });
-    Object.assign(c, { dias: f.dias.value.trim() || 'Lunes a viernes', horaIni: f.horaIni.value, horaFin: f.horaFin.value, maxMB: Math.max(1, +f.maxMB.value || 40), maxArchivos: Math.max(1, +f.maxArchivos.value || 5), correo: f.correo.value.trim(), formatos: fmts, tipos, plazos, feriados: fer });
+    DB.config.contadores.MPV[year]=Number(f.siguiente.value)-1;
+    Object.assign(c, { prefijo:f.prefijo.value.trim(),digitos:Number(f.digitos.value),dias: f.dias.value.trim() || 'Lunes a viernes', horaIni: f.horaIni.value, horaFin: f.horaFin.value, maxMB: Math.max(1, +f.maxMB.value || 40), maxArchivos: Math.max(1, +f.maxArchivos.value || 5), correo: f.correo.value.trim(), formatos: fmts, tipos, plazos, feriados: fer });
     Object.assign(EXP_PLAZOS, plazos); audit('Configuración', 'Mesa de partes', 'Horario, tipos, formatos y plazos'); if (saveDB()) { toast('Configuración de la Mesa de Partes guardada.', 'ok'); route(); } }; } };
 }
 

@@ -28,6 +28,7 @@ final class PortalServices
         }unset($r);
         foreach(['mensajes','reclamos','expedientes'] as $collection)if($user['rol']!=='admin')foreach($old[$collection] as $r)if(!PortalPolicy::find($new[$collection],'id',$r['id']))throw new PortalError(403,'No puedes eliminar registros originales.');
         foreach(['inst','redes','seo','whatsapp','limites','mpv','lr','bolsa','contadores'] as $key)if(isset($old['config'][$key])&&(!isset($new['config'][$key])||!is_array($new['config'][$key])))throw new PortalError(422,'Configuración incompleta: '.$key.'.');
+        PortalNumbering::validate($old,$new);
         if(!PortalPolicy::equal($old['config']['mpv'],$new['config']['mpv'])){
             $email=$new['config']['mpv']['correo']??null;
             if(!is_string($email)||strlen($email)>254||!filter_var($email,FILTER_VALIDATE_EMAIL))throw new PortalError(422,'Indica un correo receptor válido para Mesa de Partes.');

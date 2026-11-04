@@ -123,3 +123,21 @@ de Mesa de Partes no activa SMTP.
 Para validar el guardado, la sincronización entre pantallas y los permisos, ejecuta
 `node tests/browser-mail-settings.cjs` después de `tests/intranet.php`, con el servidor
 apuntando a la misma base desechable `_test`. La prueba restaura el correo original.
+
+## Código y correlativo del expediente
+
+En **Mesa de Partes → Configuración → Código y correlativo del expediente**, el
+administrador puede cambiar el prefijo (hasta 40 mayúsculas, números y guiones),
+la cantidad de dígitos (1 a 9) y el siguiente correlativo del año actual. La vista
+previa muestra el resultado, por ejemplo `EXP-PALPA-2026-001250`.
+
+El año se mantiene en el código y la secuencia es anual. El siguiente correlativo
+puede adelantarse para continuar una numeración previa, pero no retroceder ni
+alterar secuencias de otros años. Cambiar el prefijo no reinicia el correlativo.
+Los ceros son de presentación: un número mayor a la cantidad de dígitos elegida
+se muestra completo. Los expedientes existentes mantienen su número, cargo y
+seguimiento; los nuevos correos y cargos utilizan el número asignado por el servidor.
+El número de documento `DOC-AÑO-NÚMERO` conserva su secuencia independiente.
+
+Pruebas en base desechable: `php tests/intranet.php`, `php tests/numbering.php` y
+`node tests/browser-numbering.cjs`, con la configuración y el servidor de pruebas.

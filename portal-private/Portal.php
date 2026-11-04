@@ -23,6 +23,7 @@ require_once __DIR__.'/Patch.php';
 require_once __DIR__.'/Rules.php';
 require_once __DIR__.'/Services.php';
 require_once __DIR__.'/Academic.php';
+require_once __DIR__.'/Numbering.php';
 require_once __DIR__.'/Mail.php';
 require_once __DIR__.'/SmtpSettings.php';
 
@@ -169,7 +170,7 @@ final class PortalApp
         $data=IntranetScope::project(PortalPolicy::project($full,$user,$this->publicData($full)));
         $data['usuarios']=$this->visibleAccounts($user,$full);
         if($user&&$user['rol']==='admin'){$data['auditoria']=[...PortalAudit::rows($this),...PortalAudit::legacy($this,$full)];$data['academico']['bitacora']=array_map(fn($r)=>['id'=>$r['id'],'f'=>$r['fecha'],'u'=>$r['usuario'],'a'=>$r['accion'],'m'=>$r['entidad'],'d'=>$r['registro'].' · '.$r['detalle']],PortalAudit::rows($this));}
-        return ['data'=>$data,'revision'=>(int)$state['revision'],'user'=>$user,'csrf'=>$_SESSION['csrf'],'schema_version'=>PortalSchema::VERSION,'roles'=>PortalPolicy::definitions()['roles'],'scope'=>['mode'=>'intranet','website'=>'https://www.istpalpa.edu.pe/','modules'=>IntranetScope::MODULES]];
+        return ['data'=>$data,'revision'=>(int)$state['revision'],'user'=>$user,'csrf'=>$_SESSION['csrf'],'numberingYear'=>(int)date('Y'),'schema_version'=>PortalSchema::VERSION,'roles'=>PortalPolicy::definitions()['roles'],'scope'=>['mode'=>'intranet','website'=>'https://www.istpalpa.edu.pe/','modules'=>IntranetScope::MODULES]];
     }
     public function input(): array
     {
@@ -498,11 +499,9 @@ final class PortalApp
                     'area' => '', 'notas' => [], 'respuesta' => '', 'notifInst' => 'Omitido', 'notifUser' => 'Omitido', 'anulado' => false];
             }
             if ($type === 'expedientes') {
-                foreach (['MPV', 'DOC'] as $counter) {
-                    $data['config']['contadores'][$counter][$year] = (int)($data['config']['contadores'][$counter][$year] ?? 0) + 1;
-                }
+                $data['config']['contadores']['DOC'][$year] = (int)($data['config']['contadores']['DOC'][$year] ?? 0) + 1;
                 $cfg = $data['config']['mpv'];
-                $record['numero'] = sprintf('%s-%s-%06d', $cfg['prefijo'], $year, $data['config']['contadores']['MPV'][$year]);
+                $record['numero'] = PortalNumbering::next($data,$year);
                 $record['numDocumento'] = sprintf('DOC-%s-%06d', $year, $data['config']['contadores']['DOC'][$year]);
                 do { $record['cargoCod'] = strtoupper(bin2hex(random_bytes(8))); }
                 while (PortalPolicy::find($data['expedientes'], 'cargoCod', $record['cargoCod']) !== null);

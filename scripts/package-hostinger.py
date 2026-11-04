@@ -37,7 +37,7 @@ for name in filter(None, tracked):
     if any(part in {'backups', '.backups', '.results', '.git'} for part in path.parts):
         raise SystemExit(f'Ruta privada inesperada: {name}')
     files.append(name)
-required = {'NOTIFICACIONES-CORREO.md', 'portal-private/Mail.php', 'portal-private/SmtpSettings.php', 'portal-private/mail-worker.php',
+required = {'NOTIFICACIONES-CORREO.md', 'portal-private/Mail.php', 'portal-private/SmtpSettings.php', 'portal-private/Numbering.php', 'portal-private/mail-worker.php',
             'portal-private/vendor/phpmailer/src/PHPMailer.php', 'portal-private/vendor/phpmailer/src/SMTP.php',
             'portal-private/vendor/phpmailer/src/Exception.php', 'portal-private/vendor/phpmailer/LICENSE',
             'public_html/standalone-services.js', 'public_html/mesa-de-partes.php', 'public_html/libro-de-reclamaciones.php', 'public_html/bolsa-laboral.php', 'public_html/certificados.php', 'public_html/academic-documents.js', 'portal-private/AcademicDocuments.php', 'public_html/index.php', 'public_html/intranet.js', 'public_html/intranet.css',

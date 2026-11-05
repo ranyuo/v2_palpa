@@ -7216,39 +7216,45 @@ const MPV_ESTADOS_PUB = { Recibido: 'Recibido por Mesa de Partes', Derivado: 'De
 function horarioBox(compact) {
   const c = mpvCfg(); const now = new Date(); const r = recepcionDe(now.toISOString());
   const st = r.enHorario ? `<span class="pz-live ok">● En horario de atención: tu documento se recibe en este momento.</span>` : `<span class="pz-live off">● Fuera del horario de atención: puedes registrar tu documento; se considerará recibido el <b>${fdate(r.fecha, true)}</b>.</span>`;
-  if (compact) return `<section class="pz-horario compact" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención · ${esc(c.dias)}</span><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b>${st}</div></section>`;
+  if (compact) return `<section class="pz-horario compact" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención · ${esc(c.dias)}</span><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b><span class="pz-live ${r.enHorario ? 'ok' : 'off'}">● ${r.enHorario ? 'Abierto ahora' : 'Fuera de horario'}</span></div></section>`;
   return `<section class="pz-horario" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención</span><b>${esc(c.dias)}</b><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b>${st}</div></section>`;
+}
+function mpvRecepcionNota() {
+  const r = recepcionDe(new Date().toISOString());
+  return r.enHorario ? '' : `<p class="pz-recep">${sic('clock', 15)}<span>Fuera del horario de atención: puedes registrar tu documento; se considerará recibido el <b>${fdate(r.fecha, true)}</b>.</span></p>`;
 }
 function mpvForm() {
   const c = mpvCfg(); const exts = c.formatos;
   return `<form class="card cb pz-form" data-mpv novalidate>
    <div class="pz-sec-h"><span>1</span><h2>Datos del remitente</h2></div><div class="form-grid">
-    <div class="field"><label for="mv-tp">Tipo de persona <span class="req">*</span></label><select id="mv-tp" name="tipoPersona"><option>Persona natural</option><option>Persona jurídica / entidad</option></select></div>
-    <div class="field"><label for="mv-td">Tipo de documento <span class="req">*</span></label><select id="mv-td" name="tipoDoc"><option>DNI</option><option value="CE">Carné de extranjería</option><option>Pasaporte</option><option>RUC</option></select></div>
-    <div class="field"><label for="mv-nd">N.º de documento <span class="req">*</span></label><input id="mv-nd" name="numDoc" maxlength="12" inputmode="numeric" autocomplete="off"></div>
+    <div class="field full"><div class="pz-seg2" role="radiogroup" aria-label="Tipo de persona"><label><input type="radio" name="tipoPersona" value="Persona natural" checked><span>Persona natural</span></label><label><input type="radio" name="tipoPersona" value="Persona jurídica / entidad"><span>Persona jurídica / entidad</span></label></div></div>
+    <div class="field"><label for="mv-nd">Documento de identidad <span class="req">*</span></label><div class="pz-docpair"><select id="mv-td" name="tipoDoc" aria-label="Tipo de documento"><option>DNI</option><option value="CE">Carné de extranjería</option><option>Pasaporte</option><option>RUC</option></select><input id="mv-nd" name="numDoc" maxlength="12" inputmode="numeric" autocomplete="off" aria-label="Número de documento"></div></div>
     <div class="field" data-nat><label for="mv-no">Nombres <span class="req">*</span></label><input id="mv-no" name="nombresP" maxlength="80" autocomplete="given-name"></div>
     <div class="field" data-nat><label for="mv-ap">Apellidos <span class="req">*</span></label><input id="mv-ap" name="apellidos" maxlength="80" autocomplete="family-name"></div>
     <div class="field full" data-jur hidden><label for="mv-rs">Razón social / nombre de la entidad <span class="req">*</span></label><input id="mv-rs" name="razon" maxlength="150"></div>
-    <div class="field"><label for="mv-e">Correo electrónico (notificaciones) <span class="req">*</span></label><input id="mv-e" name="correo" type="email" maxlength="120" autocomplete="email"></div>
-    <div class="field"><label for="mv-t">Teléfono / celular <span class="req">*</span></label><input id="mv-t" name="telefono" maxlength="15" inputmode="tel" autocomplete="tel"></div>
-    <div class="field full w2"><label for="mv-dir">Dirección (opcional)</label><input id="mv-dir" name="direccion" maxlength="160" autocomplete="street-address"></div>
+    <div class="field"><label for="mv-e">Correo electrónico <span class="req">*</span></label><input id="mv-e" name="correo" type="email" maxlength="120" autocomplete="email" placeholder="nombre@correo.com"><div class="hint">Aquí recibirás las notificaciones.</div></div>
+    <div class="field"><label for="mv-t">Celular <span class="req">*</span></label><input id="mv-t" name="telefono" maxlength="15" inputmode="tel" autocomplete="tel"></div>
    </div>
-   <div class="pz-sec-h"><span>2</span><h2>Datos del documento</h2></div><div class="form-grid">
-    <div class="field"><label for="mv-tt">Tipo de documento a presentar <span class="req">*</span></label><select id="mv-tt" name="tipoTramite"><option value="">Seleccione</option>${c.tipos.map(t => `<option>${esc(t)}</option>`).join('')}</select></div>
-    <div class="field"><label for="mv-ref">N.º o referencia de su documento</label><input id="mv-ref" name="docRef" maxlength="80" placeholder="Ej.: Oficio N.º 012-2026-MPP"></div>
+   <div class="pz-sec-h"><span>2</span><h2>Documento</h2></div><div class="form-grid">
+    <div class="field"><label for="mv-tt">Tipo de documento <span class="req">*</span></label><select id="mv-tt" name="tipoTramite"><option value="">Seleccione</option>${c.tipos.map(t => `<option>${esc(t)}</option>`).join('')}</select></div>
+    <div class="field"><label for="mv-ar">Área de destino <span class="req">*</span></label><select id="mv-ar" name="areaDestino">${areaOptions('', { skipMP: true })}</select></div>
     <div class="field"><label for="mv-fo">N.º de folios <span class="req">*</span></label><input id="mv-fo" name="folios" type="number" min="1" max="2000" value="1"></div>
-    <div class="field full"><label for="mv-ar">Área de destino <span class="req">*</span></label><select id="mv-ar" name="areaDestino">${areaOptions('', { skipMP: true })}</select><div class="hint" data-arhint>La Mesa de Partes Virtual recibe el documento y lo deriva al área seleccionada.</div></div>
-    <div class="field full"><label for="mv-as">Asunto <span class="req">*</span></label><textarea id="mv-as" name="asunto" maxlength="600" style="min-height:76px" data-count></textarea><div class="hint"><span data-c>0</span>/600 caracteres</div></div>
-    <div class="field full"><label for="mv-ob">Observaciones (opcional)</label><input id="mv-ob" name="observaciones" maxlength="250"></div>
+    <div class="field full pz-arhint"><div class="hint" data-arhint>La Mesa de Partes Virtual recibe el documento y lo deriva al área seleccionada.</div></div>
+    <div class="field full"><label for="mv-as">Asunto <span class="req">*</span></label><textarea id="mv-as" name="asunto" maxlength="600" style="min-height:76px" data-count placeholder="Describe brevemente lo que solicitas"></textarea><div class="hint"><span data-c>0</span>/600</div></div>
+    <details class="full pz-opt"><summary>Agregar datos opcionales (dirección, N.º de referencia, observaciones)</summary><div class="form-grid">
+     <div class="field"><label for="mv-dir">Dirección</label><input id="mv-dir" name="direccion" maxlength="160" autocomplete="street-address"></div>
+     <div class="field"><label for="mv-ref">N.º o referencia de su documento</label><input id="mv-ref" name="docRef" maxlength="80" placeholder="Ej.: Oficio N.º 012-2026-MPP"></div>
+     <div class="field"><label for="mv-ob">Observaciones</label><input id="mv-ob" name="observaciones" maxlength="250"></div>
+    </div></details>
    </div>
-   <div class="pz-sec-h"><span>3</span><h2>Archivos adjuntos</h2></div>
-    <div class="field"><label for="mv-x">Documento principal y anexos <span class="req">*</span></label><input id="mv-x" type="file" name="archivos" multiple accept="${exts.map(e => '.' + e).join(',')}"><div class="hint">Formatos permitidos: ${exts.map(e => e.toUpperCase()).join(', ')} · tamaño máximo ${c.maxMB} MB por archivo · hasta ${c.maxArchivos} archivos.</div><ul class="pz-files" data-files></ul></div>
-   <div class="pz-sec-h"><span>4</span><h2>Declaración y envío</h2></div>
-    <div class="field"><label class="check"><input type="checkbox" name="declaro"> <span>Declaro que la información y los documentos presentados son veraces (principio de presunción de veracidad, Ley N.º 27444) y acepto ser notificado al correo electrónico registrado. <span class="req">*</span></span></label></div>
-    <div class="field"><label class="check"><input type="checkbox" name="acepto"> <span>Acepto la <a href="#/politica-de-privacidad" target="_blank">Política de Privacidad</a> y el tratamiento de mis datos personales (Ley N.º 29733). <span class="req">*</span></span></label></div>
-    ${captchaHTML('cap-mpv')}
+   <div class="pz-sec-h"><span>3</span><h2>Archivos</h2></div>
+    <div class="field"><label for="mv-x" class="pz-drop">${sic('upload', 26)}<b>Arrastra tus archivos aquí o <u>selecciónalos</u> <span class="req">*</span></b><small>${exts.map(e => e.toUpperCase()).join(', ')} · hasta ${c.maxMB} MB c/u · máximo ${c.maxArchivos} archivos</small><input id="mv-x" type="file" name="archivos" multiple accept="${exts.map(e => '.' + e).join(',')}"></label><ul class="pz-files" data-files></ul></div>
+   <div class="pz-sec-h"><span>4</span><h2>Confirmación</h2></div>
+    <div class="field"><label class="check"><input type="checkbox" name="declaro"> <span>Declaro que la información es veraz (Ley N.º 27444) y acepto ser notificado por correo electrónico. <span class="req">*</span></span></label></div>
+    <div class="field"><label class="check"><input type="checkbox" name="acepto"> <span>Acepto la <a href="#/politica-de-privacidad" target="_blank">Política de privacidad</a> (Ley N.º 29733). <span class="req">*</span></span></label></div>
+    ${mpvRecepcionNota()}
     <div class="mpv-progress" data-mpv-progress role="status" aria-live="polite" aria-atomic="true" hidden><span class="mpv-spinner" aria-hidden="true"></span><div><strong>Registrando trámite, espera un momento…</strong><p data-mpv-step></p><small>No cierres esta página ni vuelvas a enviar el formulario.</small></div></div>
-    <div class="pz-actions"><button type="reset" class="btn ghost">Limpiar</button><button class="btn" data-send>${S16('send')} Registrar y obtener cargo</button></div>
+    <div class="pz-submit">${captchaHTML('cap-mpv')}<div class="pz-actions"><button class="btn" data-send>${S16('send')} Registrar y obtener cargo</button></div></div>
   </form>`;
 }
 function mpvConsulta() {
@@ -7277,7 +7283,7 @@ function bindMpv(q0) {
   $$('.pz-mt [data-tab]').forEach(b => b.onclick = () => showTab(b.dataset.tab));
   const f = $('[data-mpv]'); let busy=false,pending=null;
   const syncTipo = () => { const jur = f.tipoPersona.value !== 'Persona natural'; $$('[data-nat]', f).forEach(x => x.hidden = jur); $$('[data-jur]', f).forEach(x => x.hidden = !jur); if (jur && f.tipoDoc.value === 'DNI') f.tipoDoc.value = 'RUC'; if (!jur && f.tipoDoc.value === 'RUC') f.tipoDoc.value = 'DNI'; };
-  f.tipoPersona.onchange = syncTipo;
+  $$('[name="tipoPersona"]', f).forEach(x => x.onchange = syncTipo);
   f.areaDestino.onchange = () => { const a = areaOf(f.areaDestino.value); $('[data-arhint]', f).innerHTML = a ? `Responsable: <b>${esc(a.resp)}</b> · <a href="mailto:${esc(a.correo)}">${esc(a.correo)}</a>` : 'La Mesa de Partes Virtual recibe el documento y lo deriva al área seleccionada.'; };
   $$('[data-count]', f).forEach(t => t.addEventListener('input', () => { t.parentNode.querySelector('[data-c]').textContent = t.value.length; }));
   const listFiles = () => { const fs = [...f.archivos.files]; $('[data-files]', f).innerHTML = fs.map(x => { const e = checkUpload(x, c.formatos, c.maxMB); return `<li class="${e ? 'bad' : ''}">${S16(e ? 'alert' : 'file')} <span>${esc(x.name)}</span> <small>${fsize(x.size)}</small>${e ? `<em>${esc(e)}</em>` : ''}</li>`; }).join(''); };
@@ -7503,8 +7509,7 @@ function lrForm() {
    <div class="pz-lr-h">${ic('book')}<div><h2>Registro de reclamo o queja</h2><small>Los campos marcados con * son obligatorios.</small></div></div>
    <div class="cb" style="padding:20px">
     <h3 class="pz-sub">${S16('user')} Datos del usuario</h3><div class="form-grid g4">
-     <div class="field"><label for="l2-td">Tipo de documento <span class="req">*</span></label><select id="l2-td" name="tipoDoc"><option value="">Seleccione</option><option>DNI</option><option value="CE">Carné de extranjería</option><option>Pasaporte</option><option>RUC</option></select></div>
-     <div class="field"><label for="l2-nd">Número de documento <span class="req">*</span></label><input id="l2-nd" name="numDoc" maxlength="12" placeholder="Ingrese su documento" autocomplete="off"></div>
+     <div class="field"><label for="l2-nd">Documento de identidad <span class="req">*</span></label><div class="pz-docpair"><select id="l2-td" name="tipoDoc" aria-label="Tipo de documento"><option value="">Tipo</option><option>DNI</option><option value="CE">Carné de extranjería</option><option>Pasaporte</option><option>RUC</option></select><input id="l2-nd" name="numDoc" maxlength="12" placeholder="Número" autocomplete="off" aria-label="Número de documento"></div></div>
      <div class="field"><label for="l2-no">Nombres <span class="req">*</span></label><input id="l2-no" name="nombresP" maxlength="80" placeholder="Ingrese sus nombres" autocomplete="given-name"></div>
      <div class="field"><label for="l2-ap">Apellidos <span class="req">*</span></label><input id="l2-ap" name="apellidos" maxlength="80" placeholder="Ingrese sus apellidos" autocomplete="family-name"></div>
      <div class="field"><label for="l2-e">Correo electrónico <span class="req">*</span></label><input id="l2-e" name="correo" type="email" maxlength="120" placeholder="correo@ejemplo.com" autocomplete="email"></div>
@@ -7521,13 +7526,12 @@ function lrForm() {
      <div class="field"><label for="l2-ar">Área o servicio involucrado</label><select id="l2-ar" name="areaHecho">${areaOptions('', { skipMP: false, placeholder: 'No sé / no aplica' })}</select></div>
      <div class="field full"><label for="l2-d">Descripción de los hechos <span class="req">*</span></label><textarea id="l2-d" name="descripcion" maxlength="${lim}" placeholder="Describa detalladamente lo sucedido..." data-count></textarea><div class="hint"><span data-c>0</span>/${lim} caracteres · máximo ${lim} caracteres</div></div>
      <div class="field full"><label for="l2-pe">Pedido concreto <span class="req">*</span></label><textarea id="l2-pe" name="pedido" maxlength="${L.pedido || 1000}" placeholder="Indique qué solución o atención solicita..." style="min-height:80px" data-count></textarea><div class="hint"><span data-c>0</span>/${L.pedido || 1000} caracteres</div></div>
-     <div class="field full"><label for="l2-x">Documento o evidencia <small style="font-weight:400;color:var(--muted)">(opcional)</small></label><input id="l2-x" type="file" name="adjunto" accept=".pdf,.jpg,.jpeg,.png"><div class="hint">Formatos permitidos: PDF, JPG y PNG · máx. 5 MB.</div></div>
+     <div class="field full"><span class="lbl">Documento o evidencia <small style="font-weight:400;color:var(--muted)">(opcional)</small></span><label for="l2-x" class="pz-drop">${sic('upload', 26)}<b>Arrastra tu archivo aquí o <u>selecciónalo</u></b><small>PDF, JPG o PNG · máx. 5 MB</small><input id="l2-x" type="file" name="adjunto" accept=".pdf,.jpg,.jpeg,.png"></label><div class="hint" data-l2-file></div></div>
     </div>
     <div class="field pz-decl"><label class="check"><input type="checkbox" name="declaro"> <span>Declaro que la información proporcionada es verdadera y corresponde a los hechos que deseo comunicar. <span class="req">*</span></span></label></div>
     <div class="field"><label class="check"><input type="checkbox" name="acepto"> <span>Acepto la <a href="#/politica-de-privacidad" target="_blank">Política de Privacidad</a> y el tratamiento de mis datos personales (Ley N.º 29733). <span class="req">*</span></span></label></div>
-    ${captchaHTML('cap-lr2')}
     <div class="mpv-progress" data-lr-progress role="status" aria-live="polite" hidden><span class="mpv-spinner" aria-hidden="true"></span><div><strong>Registrando reclamo, espera un momento…</strong><p>Estamos guardando tu solicitud y preparando tu constancia. No cierres la página ni repitas el envío.</p></div></div>
-    <div class="pz-actions"><button type="reset" class="btn ghost">${S16('back')} Cancelar</button><button class="btn" data-send>${S16('send')} Enviar reclamo</button></div>
+    <div class="pz-submit">${captchaHTML('cap-lr2')}<div class="pz-actions"><button class="btn" data-send>${S16('send')} Enviar reclamo</button></div></div>
    </div></form>`;
 }
 function lrPage(path, q0) {
@@ -7556,7 +7560,9 @@ function bindLr2(q0) {
   const showTab = k => { $$('.pz-mt [data-tab]').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === k)); $$('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== k); };
   $$('.pz-mt [data-tab]').forEach(b => b.onclick = () => showTab(b.dataset.tab));
   $$('[data-count]', f).forEach(t => t.addEventListener('input', () => { t.parentNode.querySelector('[data-c]').textContent = t.value.length; }));
-  f.addEventListener('reset', () => setTimeout(() => $$('[data-c]', f).forEach(x => x.textContent = '0'), 0));
+  const lrFile = () => { const x = f.adjunto.files[0]; $('[data-l2-file]', f).innerHTML = x ? `${S16('file')} <span>${esc(x.name)}</span> <small>${fsize(x.size)}</small>` : ''; };
+  f.adjunto.addEventListener('change', lrFile);
+  f.addEventListener('reset', () => setTimeout(() => { $$('[data-c]', f).forEach(x => x.textContent = '0'); lrFile(); }, 0));
   f.onsubmit = async e => {
     e.preventDefault();if(busy)return; const v = Object.fromEntries(new FormData(f)); const er = {};
     if (!v.tipoDoc) er.tipoDoc = 'Seleccione el tipo de documento.';
@@ -8215,7 +8221,7 @@ function svHead(k, chips, compact) {
   return `<header class="pz-mh t-${m.tone}${compact ? ' compact' : ''}"><span class="pz-mh-ic">${sic(m.icon, 30)}</span><div class="pz-mh-tx"><span class="pz-mh-k">Servicios en línea · ${esc(inst().nombreCorto)}</span><h1>${esc(m.title)}</h1><p>${esc(m.text)}</p>${chips && chips.length ? `<ul class="pz-mh-ch">${chips.map(([i, t]) => `<li>${sic(i, 15)}<span>${t}</span></li>`).join('')}</ul>` : ''}</div></header>`;
 }
 /* recuadro compacto de dato clave junto a la cabecera */
-const svKeyBox = (icon, kicker, big, note, label) => `<section class="pz-horario compact" aria-label="${esc(label || kicker)}"><div class="pz-h-ic">${ic(icon)}</div><div><span class="pz-k">${kicker}</span><b class="pz-hh">${big}</b>${note ? `<span class="pz-live off">${note}</span>` : ''}</div></section>`;
+const svKeyBox = (icon, kicker, big, note, label) => `<section class="pz-horario compact" aria-label="${esc(label || kicker)}"><div class="pz-h-ic">${ic(icon)}</div><div><span class="pz-k">${kicker}</span><b class="pz-hh">${big}</b>${note ? `<span class="pz-live note">${note}</span>` : ''}</div></section>`;
 /* pasos del servicio */
 const svSteps = steps => `<ol class="pz-mst">${steps.map(([t, d], i) => `<li><span>${i + 1}</span><div><b>${t}</b><small>${d}</small></div></li>`).join('')}</ol>`;
 /* pestañas del módulo (compatibles con los enlazadores existentes: data-tab / data-pane) */

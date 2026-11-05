@@ -14,8 +14,7 @@ function publicServicePath(){
 function employmentServiceContext(){return publicServicePath()==='servicios/bolsa-laboral';}
 window.PORTAL_EMPLOYMENT_CONTEXT=()=>employmentServiceContext()&&['estudiante','egresado','empresa'].includes(currentUser()?.rol)&&can('ix-bolsa');
 function publicServiceHeader(path){
- const service=PUBLIC_SERVICE_PAGES[path];
- return `<header class="standalone-header"><div class="wrap"><div class="standalone-brand"><img src="${logoSrc()}" alt="Logotipo de Palpa"><span><strong>${esc(inst().nombreCorto||'IES Público Palpa')}</strong><small>Servicio institucional en línea</small></span></div><span class="standalone-service-name">${service.title}</span></div></header>`;
+ return `<header class="standalone-header"><div class="wrap"><div class="standalone-brand"><img src="${logoSrc()}" alt="Logotipo de Palpa"><span><strong>${esc(inst().nombreCorto||'IES Público Palpa')}</strong><small>Servicio institucional en línea</small></span></div></div></header>`;
 }
 function publicServiceFooter(path){return `<footer class="standalone-footer wrap"><span>${esc(inst().nombreCorto)} · ${PUBLIC_SERVICE_PAGES[path].title}</span><div><button type="button" data-service-policy="privacidad">Privacidad</button><button type="button" data-service-policy="terminos">Términos de uso</button></div></footer>`;}
 function publicServicePolicy(key){

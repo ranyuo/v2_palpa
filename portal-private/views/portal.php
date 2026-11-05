@@ -5896,7 +5896,7 @@ function crudForm(spec, id) {
   const isNew = id === 'nuevo';
   const base = isNew ? (ADM.work && ADM.workKey === spec.key && ADM.workNew ? ADM.work : Object.assign({ id: uid(), estado: spec.states ? spec.states[0] : 'Borrador' }, spec.defaults ? spec.defaults() : {})) : byId(spec.coll, id);
   if (!base) return { html: admHead('Registro no encontrado', '', '', spec.icon) + `<a class="btn" href="#/admin/${spec.key}">Volver</a>` };
-  if (!isNew && spec.scope && !spec.scope(base)) { audit('Acceso denegado', spec.title, spec.label(base), 'Registro fuera de su ámbito'); saveDB(); return { html: admHead('Sin permiso', 'Este registro no pertenece a su ámbito de trabajo. El intento quedó registrado en la auditoría.', `<a class="btn" href="#/admin/${spec.key}">Volver al listado</a>`, 'lock') }; }
+  if (!isNew && spec.scope && !spec.scope(base)) { audit('Acceso denegado', spec.title, spec.label(base), 'Registro fuera de su ámbito'); return { html: admHead('Sin permiso', 'Este registro no pertenece a su ámbito de trabajo. El intento quedó registrado en la auditoría.', `<a class="btn" href="#/admin/${spec.key}">Volver al listado</a>`, 'lock') }; }
   if (!isNew && spec.canEdit && !spec.canEdit(base)) return { html: admHead('Sin permiso', 'No tiene permiso para editar este registro.', '', 'lock') };
   const work = ADM.work && ADM.work.id === base.id && ADM.workKey === spec.key ? ADM.work : JSON.parse(JSON.stringify(base));
   ADM.work = work; ADM.workKey = spec.key; ADM.workNew = isNew;
@@ -6903,7 +6903,7 @@ function renderAdmin(parts, q) {
   const key = parts[1] || 'dashboard'; const spec = SPECS[key]; const custom = CUSTOM[key];
   if (!spec && !custom) return { html: admShell('', admHead('Página no encontrada', 'El módulo solicitado no existe.', '<a class="btn" href="#/admin">Ir al inicio</a>', 'alert')), after: bindAdmChrome };
   const mod = spec ? spec.mod : (MOD_OF[key] || key);
-  if (!can(mod)) { audit('Acceso denegado', MODULES[mod] || key, '#/admin/' + parts.slice(1).join('/')); saveDB(); return { html: admShell('', admHead('Acceso denegado', `Su rol (<b>${esc(role().label)}</b>) no tiene permiso para este módulo. El intento quedó registrado en la auditoría.`, '<a class="btn" href="#/admin">Volver al inicio</a>', 'lock')), after: bindAdmChrome }; }
+  if (!can(mod)) { audit('Acceso denegado', MODULES[mod] || key, '#/admin/' + parts.slice(1).join('/')); return { html: admShell('', admHead('Acceso denegado', `Su rol (<b>${esc(role().label)}</b>) no tiene permiso para este módulo. El intento quedó registrado en la auditoría.`, '<a class="btn" href="#/admin">Volver al inicio</a>', 'lock')), after: bindAdmChrome }; }
   let out;
   try { out = spec ? (parts[2] ? crudForm(spec, parts[2]) : crudList(spec)) : custom(parts, q); }
   catch (e) { console.error(e); out = { html: admHead('Ocurrió un error', esc(e.message), '<a class="btn" href="#/admin">Volver al inicio</a>', 'alert') }; }

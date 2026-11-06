@@ -83,3 +83,8 @@
 .standalone-main .pz-lr{max-width:none;margin:0}
 .standalone-main label.check{font-weight:400}
 .standalone-main .pz-horario.compact .pz-live.note{color:var(--muted,#5f6878)}
+:root[data-mode="dark"] .standalone-main :is(h1,h2,h3,.pz-sub,.pz-sec-h h2,.pz-tipo b,.pz-drop b){color:var(--ink)}
+:root[data-mode="dark"] .standalone-main .tabs.pz-mt{background:none}
+:root[data-mode="dark"] .standalone-main :is(.pz-docpair select,.pz-drop,.pz-horario.compact .pz-h-ic){background-color:var(--card)}
+:root[data-mode="dark"] .standalone-main .pz-horario.compact .pz-hh{color:var(--ink)}
+:root[data-mode="dark"] .standalone-main .pz-tipo .que svg{stroke:var(--ink)}

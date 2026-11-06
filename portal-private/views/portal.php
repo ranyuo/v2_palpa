@@ -7213,10 +7213,10 @@ const S16 = n => sic(n, 16);
    1.4 MESA DE PARTES VIRTUAL
    ========================================================= */
 const MPV_ESTADOS_PUB = { Recibido: 'Recibido por Mesa de Partes', Derivado: 'Derivado al área de destino', 'En proceso': 'En atención en el área', Observado: 'Observado (revise el seguimiento)', Atendido: 'Atendido', Archivado: 'Archivado' };
-function horarioBox(compact) {
+function horarioBox(compact, short) {
   const c = mpvCfg(); const now = new Date(); const r = recepcionDe(now.toISOString());
   const st = r.enHorario ? `<span class="pz-live ok">● En horario de atención: tu documento se recibe en este momento.</span>` : `<span class="pz-live off">● Fuera del horario de atención: puedes registrar tu documento; se considerará recibido el <b>${fdate(r.fecha, true)}</b>.</span>`;
-  if (compact) return `<section class="pz-horario compact" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención · ${esc(c.dias)}</span><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b><span class="pz-live ${r.enHorario ? 'ok' : 'off'}">● ${r.enHorario ? 'Abierto ahora' : 'Fuera de horario'}</span></div></section>`;
+  if (compact) return `<section class="pz-horario compact" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención · ${esc(c.dias)}</span><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b>${short ? `<span class="pz-live ${r.enHorario ? 'ok' : 'off'}">● ${r.enHorario ? 'Abierto ahora' : 'Fuera de horario'}</span>` : st}</div></section>`;
   return `<section class="pz-horario" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención</span><b>${esc(c.dias)}</b><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b>${st}</div></section>`;
 }
 function mpvRecepcionNota() {
@@ -7270,7 +7270,7 @@ function mpvInfo() {
 }
 R('servicios/mesa-de-partes', (path, q0) => {
   const c = mpvCfg(); const t0 = q0 && q0.get && q0.get('tab'); const cur = t0 === 'consulta' || (q0 && q0.get && q0.get('exp')) ? 'c' : t0 === 'info' ? 'i' : 'n';
-  const body = `${svNav('mesa-de-partes')}<div class="pz-mpv-top">${svHead('mpv', null, true)}${horarioBox(true)}</div>
+  const body = `${svNav('mesa-de-partes')}<div class="pz-mpv-top">${svHead('mpv', null, true)}${horarioBox(true, true)}</div>
    ${svTabs([['n', 'send', 'Nuevo trámite'], ['c', 'search', 'Consultar expediente'], ['i', 'book', 'Información']], cur)}
    <div data-pane="n" ${cur === 'n' ? '' : 'hidden'}>${mpvForm()}</div><div data-pane="c" ${cur === 'c' ? '' : 'hidden'}>${mpvConsulta()}</div><div data-pane="i" ${cur === 'i' ? '' : 'hidden'}>${mpvInfo()}</div>`;
   const side = null;

@@ -7285,34 +7285,43 @@ async function identityLookup(tipoDoc, numDoc) {
   if (!response.ok) throw new Error(result.message || 'No se pudo consultar el documento. Completa los campos manualmente.');
   return result.record;
 }
+// Mesa de Partes y Libro de Reclamaciones comparten el autocompletado. Si el formulario tiene razón social
+// (Mesa de Partes) un RUC la completa; si solo tiene nombres y apellidos, se usan los del RUC 10.
 function bindIdentityLookup(f) {
   if (!window.PORTAL_BOOTSTRAP.documentLookup) return;
   const hint = $('[data-idhint]', f); let last = '', seq = 0;
   const idle = 'Con DNI o RUC completaremos tus datos automáticamente.';
   const say = (text, cls = '') => { hint.textContent = text; hint.className = 'hint' + (cls ? ' ' + cls : ''); };
   const setPersona = natural => { const r = $$('[name="tipoPersona"]', f).find(x => (x.value === 'Persona natural') === natural); if (r && !r.checked) { r.checked = true; r.dispatchEvent(new Event('change')); } };
+  const fillPerson = r => { f.nombresP.value = r.nombres || ''; f.apellidos.value = r.apellidos || ''; };
   const run = async () => {
+    // Sin tipo elegido, 8 dígitos se toman como DNI y 11 que empiezan con 10 o 20 como RUC.
+    if (!f.tipoDoc.value) { const n = f.numDoc.value.trim(); if (/^\d{8}$/.test(n)) f.tipoDoc.value = 'DNI'; else if (/^(10|20)\d{9}$/.test(n)) f.tipoDoc.value = 'RUC'; }
     const tipo = f.tipoDoc.value, num = f.numDoc.value.trim(), key = tipo + ':' + num;
     if (!['DNI', 'RUC'].includes(tipo) || validDoc(tipo, num)) { last = ''; seq++; f.numDoc.removeAttribute('aria-busy'); return say(idle); }
     if (key === last) return; last = key; const mine = ++seq;
     say('Consultando ' + tipo + '…', 'pz-id-wait'); f.numDoc.setAttribute('aria-busy', 'true');
     try {
       const r = await identityLookup(tipo, num); if (mine !== seq) return;
+      const extra = [r.estado, r.condicion].filter(Boolean).join(' · ');
       if (tipo === 'DNI') {
-        setPersona(true); f.tipoDoc.value = 'DNI';
-        f.nombresP.value = r.nombres || ''; f.apellidos.value = r.apellidos || '';
+        setPersona(true); f.tipoDoc.value = 'DNI'; fillPerson(r);
         say('Datos encontrados: ' + [r.nombres, r.apellidos].filter(Boolean).join(' ') + '. Revísalos antes de enviar.', 'pz-id-ok');
-      } else {
+      } else if (f.razon) {
         setPersona(false); f.tipoDoc.value = 'RUC';
         f.razon.value = r.razon || '';
-        if (r.direccion && !f.direccion.value.trim()) f.direccion.value = r.direccion;
-        const extra = [r.estado, r.condicion].filter(Boolean).join(' · ');
+        if (r.direccion && f.direccion && !f.direccion.value.trim()) f.direccion.value = r.direccion;
         say('Datos encontrados: ' + (r.razon || '') + (extra ? ' (' + extra + ')' : '') + '. Revísalos antes de enviar.', 'pz-id-ok');
+      } else if (r.nombres || r.apellidos) {
+        fillPerson(r);
+        say('Datos encontrados: ' + [r.nombres, r.apellidos].filter(Boolean).join(' ') + (extra ? ' (' + extra + ')' : '') + '. Revísalos antes de enviar.', 'pz-id-ok');
+      } else {
+        say('RUC de ' + (r.razon || 'una entidad') + (extra ? ' (' + extra + ')' : '') + '. Escribe los nombres y apellidos de quien presenta el reclamo.', 'pz-id-ok');
       }
     } catch (error) { if (mine === seq) { say(error.message, 'pz-id-err'); last = ''; } }
     finally { if (mine === seq) f.numDoc.removeAttribute('aria-busy'); }
   };
-  f.numDoc.addEventListener('input', () => { if (f.tipoDoc.value === 'DNI' || f.tipoDoc.value === 'RUC') f.numDoc.value = f.numDoc.value.replace(/\D/g, ''); run(); });
+  f.numDoc.addEventListener('input', () => { if (['DNI', 'RUC'].includes(f.tipoDoc.value)) f.numDoc.value = f.numDoc.value.replace(/\D/g, ''); run(); });
   f.tipoDoc.addEventListener('change', run);
   f.addEventListener('reset', () => setTimeout(() => { last = ''; seq++; say(idle); }, 0));
 }
@@ -7549,7 +7558,7 @@ function lrForm() {
    <div class="pz-lr-h">${ic('book')}<div><h2>Registro de reclamo o queja</h2><small>Los campos marcados con * son obligatorios.</small></div></div>
    <div class="cb" style="padding:20px">
     <h3 class="pz-sub">${S16('user')} Datos del usuario</h3><div class="form-grid g4">
-     <div class="field"><label for="l2-nd">Documento de identidad <span class="req">*</span></label><div class="pz-docpair"><select id="l2-td" name="tipoDoc" aria-label="Tipo de documento"><option value="">Tipo</option><option>DNI</option><option value="CE">Carné de extranjería</option><option>Pasaporte</option><option>RUC</option></select><input id="l2-nd" name="numDoc" maxlength="12" placeholder="Número" autocomplete="off" aria-label="Número de documento"></div></div>
+     <div class="field"><label for="l2-nd">Documento de identidad <span class="req">*</span></label><div class="pz-docpair"><select id="l2-td" name="tipoDoc" aria-label="Tipo de documento"><option value="">Tipo</option><option>DNI</option><option value="CE">Carné de extranjería</option><option>Pasaporte</option><option>RUC</option></select><input id="l2-nd" name="numDoc" maxlength="12" placeholder="Número" autocomplete="off" aria-label="Número de documento" aria-describedby="l2-nd-h"></div><div class="hint" id="l2-nd-h" data-idhint aria-live="polite">${window.PORTAL_BOOTSTRAP.documentLookup ? 'Con DNI o RUC completaremos tus datos automáticamente.' : ''}</div></div>
      <div class="field"><label for="l2-no">Nombres <span class="req">*</span></label><input id="l2-no" name="nombresP" maxlength="80" placeholder="Ingrese sus nombres" autocomplete="given-name"></div>
      <div class="field"><label for="l2-ap">Apellidos <span class="req">*</span></label><input id="l2-ap" name="apellidos" maxlength="80" placeholder="Ingrese sus apellidos" autocomplete="family-name"></div>
      <div class="field"><label for="l2-e">Correo electrónico <span class="req">*</span></label><input id="l2-e" name="correo" type="email" maxlength="120" placeholder="correo@ejemplo.com" autocomplete="email"></div>
@@ -7602,6 +7611,7 @@ function bindLr2(q0) {
   $$('[data-count]', f).forEach(t => t.addEventListener('input', () => { t.parentNode.querySelector('[data-c]').textContent = t.value.length; }));
   const lrFile = () => { const x = f.adjunto.files[0]; $('[data-l2-file]', f).innerHTML = x ? `${S16('file')} <span>${esc(x.name)}</span> <small>${fsize(x.size)}</small>` : ''; };
   f.adjunto.addEventListener('change', lrFile);
+  bindIdentityLookup(f);
   f.addEventListener('reset', () => setTimeout(() => { $$('[data-c]', f).forEach(x => x.textContent = '0'); lrFile(); }, 0));
   f.onsubmit = async e => {
     e.preventDefault();if(busy)return; const v = Object.fromEntries(new FormData(f)); const er = {};

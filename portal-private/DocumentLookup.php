@@ -105,9 +105,13 @@ final class PortalDocumentLookup
             $place = array_filter(array_map(self::text(...), [$d['distrito'] ?? '', $d['provincia'] ?? '', $d['departamento'] ?? '']));
             if ($address !== '' && $place) $address .= ', '.implode(', ', $place);
         }
-        return ['tipoDoc' => 'RUC', 'numDoc' => $number, 'razon' => $name, 'direccion' => mb_substr($address, 0, 160),
+        $record = ['tipoDoc' => 'RUC', 'numDoc' => $number, 'razon' => $name, 'direccion' => mb_substr($address, 0, 160),
             'estado' => self::text($d['estado_del_contribuyente'] ?? $d['estado'] ?? ''),
             'condicion' => self::text($d['condicion_de_domicilio'] ?? $d['condicion'] ?? '')];
+        // RUC 10 = persona natural con negocio: SUNAT registra «APELLIDO PATERNO APELLIDO MATERNO NOMBRES».
+        // Los formularios sin razón social (Libro de Reclamaciones) usan estos campos.
+        if (str_starts_with($number, '10')) [$record['apellidos'], $record['nombres']] = self::splitFullName($name);
+        return $record;
     }
 
     private static function text(mixed $value): string

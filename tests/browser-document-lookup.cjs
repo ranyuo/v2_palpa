@@ -16,7 +16,7 @@ const page=await browser.newPage({viewport:{width:1280,height:1000}});page.on('p
 await page.addInitScript(()=>{let b;Object.defineProperty(window,'PORTAL_BOOTSTRAP',{configurable:true,get:()=>b,set:v=>{v.documentLookup=true;b=v;}});});
 const seen=[];
 await page.route(/route=api%2Fidentidad/,async route=>{const body=route.request().postDataJSON();seen.push(body);assert.ok(route.request().headers()['x-csrf-token']);
-  const answers={'46027897':{tipoDoc:'DNI',numDoc:'46027897',nombres:'ROXANA KARINA',apellidos:'DELGADO HUAMAN'},'20131312955':{tipoDoc:'RUC',numDoc:'20131312955',razon:'SUPERINTENDENCIA NACIONAL DE ADUANAS Y DE ADMINISTRACION TRIBUTARIA - SUNAT',direccion:'AV. GARCILASO DE LA VEGA NRO. 1472 - LIMA LIMA LIMA',estado:'ACTIVO',condicion:'HABIDO'}};
+  const answers={'46027897':{tipoDoc:'DNI',numDoc:'46027897',nombres:'ROXANA KARINA',apellidos:'DELGADO HUAMAN'},'10456789123':{tipoDoc:'RUC',numDoc:'10456789123',razon:'QUISPE HUAMAN MARIA ELENA',apellidos:'QUISPE HUAMAN',nombres:'MARIA ELENA',direccion:'',estado:'ACTIVO',condicion:'HABIDO'},'20131312955':{tipoDoc:'RUC',numDoc:'20131312955',razon:'SUPERINTENDENCIA NACIONAL DE ADUANAS Y DE ADMINISTRACION TRIBUTARIA - SUNAT',direccion:'AV. GARCILASO DE LA VEGA NRO. 1472 - LIMA LIMA LIMA',estado:'ACTIVO',condicion:'HABIDO'}};
   const record=answers[body.numDoc];await route.fulfill({status:record?200:404,contentType:'application/json',body:JSON.stringify(record?{record}:{message:'No se encontraron datos para ese documento. Completa los campos manualmente.'})});});
 await page.goto(base+'/mesa-de-partes.php');await page.locator('[data-mpv]').waitFor();
 const hint=page.locator('[data-idhint]');assert.match(await hint.innerText(),/completaremos tus datos/);checks++;
@@ -41,5 +41,18 @@ assert.match(await page.inputValue('#mv-rs'),/^SUPERINTENDENCIA NACIONAL/);asser
 // Otros documentos no consultan.
 const before=seen.length;await page.selectOption('#mv-td','Pasaporte');await page.fill('#mv-nd','AB123456');await page.waitForTimeout(200);assert.equal(seen.length,before);checks++;
 await page.setViewportSize({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));checks++;
+
+// Libro de Reclamaciones: solo tiene nombres y apellidos; el tipo empieza vacío.
+await page.setViewportSize({width:1280,height:1000});await page.goto(base+'/libro-de-reclamaciones.php');await page.locator('[data-lr2]').waitFor();
+const lh=page.locator('[data-lr2] [data-idhint]');assert.match(await lh.innerText(),/completaremos tus datos/);assert.equal(await page.inputValue('#l2-td'),'');checks++;
+let n=seen.length;await page.locator('#l2-nd').pressSequentially('46027897');await page.waitForFunction(()=>document.querySelector('#l2-no').value!=='');
+assert.equal(await page.inputValue('#l2-td'),'DNI');assert.equal(await page.inputValue('#l2-no'),'ROXANA KARINA');assert.equal(await page.inputValue('#l2-ap'),'DELGADO HUAMAN');assert.deepEqual(seen[n],{tipoDoc:'DNI',numDoc:'46027897'});checks++;
+await page.selectOption('#l2-td','RUC');await page.fill('#l2-nd','10456789123');await page.waitForFunction(()=>document.querySelector('#l2-no').value==='MARIA ELENA');
+assert.equal(await page.inputValue('#l2-ap'),'QUISPE HUAMAN');assert.match(await lh.innerText(),/MARIA ELENA QUISPE HUAMAN \(ACTIVO · HABIDO\)/);checks++;
+await page.fill('#l2-no','');await page.fill('#l2-ap','');await page.fill('#l2-nd','20131312955');await page.waitForFunction(()=>/RUC de SUPERINTENDENCIA/.test(document.querySelector('[data-lr2] [data-idhint]').textContent));
+assert.equal(await page.inputValue('#l2-no'),'');assert.equal(await page.inputValue('#l2-ap'),'');assert.match(await lh.innerText(),/Escribe los nombres y apellidos/);checks++;
+await page.fill('#l2-nd','99999999');await page.selectOption('#l2-td','DNI');await page.waitForFunction(()=>/No se encontraron datos/.test(document.querySelector('[data-lr2] [data-idhint]').textContent));checks++;
+await page.fill('#l2-nd','');await page.selectOption('#l2-td','');await page.locator('#l2-nd').pressSequentially('AB123456');assert.equal(await page.inputValue('#l2-nd'),'AB123456');assert.equal(await page.inputValue('#l2-td'),'');checks++;
+n=seen.length;await page.selectOption('#l2-td','CE');await page.fill('#l2-nd','AB1234567');await page.waitForTimeout(200);assert.equal(seen.length,n);checks++;
 assert.deepEqual(errors,[]);console.log(`${checks} comprobaciones de autocompletado de DNI/RUC aprobadas.`);
 }finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});

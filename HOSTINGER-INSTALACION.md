@@ -60,9 +60,14 @@ Completa programas, unidades, módulos, ambientes, periodos, alumnos, responsabl
 
 Los formularios de recepción y seguimiento funcionan en la aplicación. El registro de trámites incluye notificaciones por SMTP, deshabilitadas hasta configurar las credenciales privadas y el cron. Sigue [NOTIFICACIONES-CORREO.md](NOTIFICACIONES-CORREO.md) para habilitar Gmail Workspace y comprobar ambos destinatarios.
 
-### Autocompletado de DNI y RUC en Mesa de Partes
+### Autocompletado de DNI y RUC en Mesa de Partes y Libro de Reclamaciones
 
-Al escribir un DNI de 8 dígitos, la Mesa de Partes completa nombres y apellidos. Con un RUC de 11 dígitos completa la razón social, la dirección, el estado y la condición. El proveedor por defecto es [MIGO API v2](https://docs.migo.pe/v2). El navegador consulta a la intranet (`/api/identidad`) y la intranet consulta al proveedor, así que el token nunca llega al navegador. Los campos siguen siendo editables, y si la API no responde, el ciudadano los completa a mano.
+Al escribir un DNI de 8 dígitos se completan nombres y apellidos, tanto en la **Mesa de Partes** como en el **Libro de Reclamaciones**. Con un RUC de 11 dígitos:
+
+- **Mesa de Partes:** completa la razón social, la dirección, el estado y la condición.
+- **Libro de Reclamaciones:** con un RUC 10 (persona natural) completa nombres y apellidos. Con un RUC 20 (empresa) muestra la razón social y pide el nombre de quien presenta el reclamo.
+
+Si no se eligió el tipo de documento, 8 dígitos se toman como DNI y 11 como RUC. El proveedor por defecto es [MIGO API v2](https://docs.migo.pe/v2). El navegador consulta a la intranet (`/api/identidad`) y la intranet consulta al proveedor, así que el token nunca llega al navegador. Los campos siguen siendo editables, y si la API no responde, se completan a mano.
 
 1. Crea o copia el token en <https://api.migo.pe/tokens>.
 2. Inicia sesión como administrador y abre **Configuración → Consulta de DNI y RUC (API)**.

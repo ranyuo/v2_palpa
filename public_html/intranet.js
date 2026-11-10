@@ -94,7 +94,7 @@ function intranetSmtpTestBind(){
 }
 
 // API de consulta de DNI/RUC para autocompletar la Mesa de Partes; el token se guarda cifrado y nunca vuelve al navegador.
-function intranetDocLookupHTML(){return `<section class="panel" style="margin-top:20px"><h2>Consulta de DNI y RUC (API)</h2><form class="pb" data-idapi-form autocomplete="off"><p>Al escribir un DNI o RUC en la Mesa de Partes se completan los nombres o la razón social con la API configurada aquí.</p><div class="form-grid">
+function intranetDocLookupHTML(){return `<section class="panel" style="margin-top:20px"><h2>Consulta de DNI y RUC (API)</h2><form class="pb" data-idapi-form autocomplete="off"><p>Al escribir un DNI o RUC en la Mesa de Partes o en el Libro de Reclamaciones se completan los nombres o la razón social con la API configurada aquí.</p><div class="form-grid">
  <div class="field full"><label class="check"><input name="enabled" type="checkbox"> Activar autocompletado por DNI y RUC</label></div>
  <div class="field"><label for="idapi-provider">Proveedor</label><select id="idapi-provider" name="provider"></select><small data-idapi-docs></small></div>
  <div class="field"><label for="idapi-url">URL base de la API</label><input id="idapi-url" name="base_url" type="url" required maxlength="200" placeholder="https://api.migo.pe/api/v2"><small>Debe empezar con https://. Déjala como está salvo que el proveedor indique otra.</small></div>

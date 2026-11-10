@@ -74,6 +74,7 @@ $migo = new PortalDocumentLookup(['enabled' => true, 'token' => 'secreto-de-prue
     '/dni/00000000' => [404, json_encode(['success' => false, 'message' => 'Recurso no encontrado'])],
     '/dni/13131313' => [200, json_encode(['success' => false, 'message' => 'Recurso no encontrado'])],
     '/dni/14141414' => [401, json_encode(['message' => 'Unauthenticated.'])],
+    '/ruc/10456789123' => [200, json_encode(['success' => true, 'ruc' => '10456789123', 'nombre_o_razon_social' => 'QUISPE HUAMAN MARIA ELENA', 'estado_del_contribuyente' => 'ACTIVO', 'condicion_de_domicilio' => 'HABIDO', 'direccion' => '-'])],
     '/ruc/20131312955' => [200, json_encode(['success' => true, 'ruc' => '20131312955', 'nombre_o_razon_social' => 'SUPERINTENDENCIA NACIONAL DE ADUANAS Y DE ADMINISTRACION TRIBUTARIA - SUNAT', 'estado_del_contribuyente' => 'ACTIVO', 'condicion_de_domicilio' => 'HABIDO', 'ubigeo' => '150101', 'distrito' => 'LIMA', 'provincia' => 'LIMA', 'departamento' => 'LIMA', 'direccion_simple' => 'AV. GARCILASO DE LA VEGA NRO. 1472', 'direccion' => 'AV. GARCILASO DE LA VEGA NRO. 1472 - LIMA LIMA LIMA'])],
 ]));
 $r = $migo->find('DNI', '46027897');
@@ -91,6 +92,11 @@ fails(fn() => $migo->find('DNI', '14141414'), 503, 'token rechazado por MIGO');
 $r = $migo->find('RUC', '20131312955');
 check($calls[count($calls) - 1][0] === 'https://api.migo.pe/api/v2/ruc/20131312955', 'URL del RUC en MIGO');
 check($r === ['tipoDoc' => 'RUC', 'numDoc' => '20131312955', 'razon' => 'SUPERINTENDENCIA NACIONAL DE ADUANAS Y DE ADMINISTRACION TRIBUTARIA - SUNAT', 'direccion' => 'AV. GARCILASO DE LA VEGA NRO. 1472 - LIMA LIMA LIMA', 'estado' => 'ACTIVO', 'condicion' => 'HABIDO'], 'RUC de MIGO: '.json_encode($r));
+
+$r = $migo->find('RUC', '10456789123');
+check($r['razon'] === 'QUISPE HUAMAN MARIA ELENA' && $r['apellidos'] === 'QUISPE HUAMAN' && $r['nombres'] === 'MARIA ELENA' && $r['direccion'] === '', 'RUC 10 separa apellidos y nombres: '.json_encode($r));
+check(!isset($migo->find('RUC', '20131312955')['nombres']), 'RUC 20 no inventa nombres de persona');
+check(substr_count($view = file_get_contents(dirname(__DIR__).'/portal-private/views/portal.php'), 'bindIdentityLookup(f);') === 2 && str_contains($view, 'id="l2-nd-h" data-idhint'), 'Mesa de Partes y Libro de Reclamaciones usan el autocompletado');
 
 $view = file_get_contents(dirname(__DIR__).'/portal-private/views/portal.php');
 check(str_contains($view, "portalURL('/api/identidad')") && str_contains($view, 'bindIdentityLookup(f);'), 'Mesa de Partes usa el autocompletado');

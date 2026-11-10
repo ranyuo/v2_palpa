@@ -1,0 +1,99 @@
+name: Intranet QA
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: qa-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  PORTAL_CONFIG_FILE: ${{ github.workspace }}/../qa-config/config.test.php
+jobs:
+  php:
+    name: PHP ${{ matrix.php }} · MariaDB
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3']
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: palpa_test
+          MARIADB_USER: palpa
+          MARIADB_PASSWORD: solo-ci
+          MARIADB_ROOT_PASSWORD: solo-ci-root
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_mysql, mbstring, openssl, fileinfo, zlib
+          coverage: none
+      - name: Bibliotecas del navegador íntegras y sin avisos de seguridad publicados
+        run: python3 tests/vendor-audit.py --advisories
+      - name: Sintaxis PHP y JavaScript
+        run: |
+          find portal-private public_html tests -name '*.php' -not -path '*/vendor/*' -print0 | xargs -0 -n1 php -l >/dev/null
+          for f in public_html/*.js tests/*.cjs; do node --check "$f"; done
+      - name: Configuración de pruebas (base desechable _test, SMTP desactivado)
+        run: |
+          mkdir -p "$(dirname "$PORTAL_CONFIG_FILE")"
+          cat > "$PORTAL_CONFIG_FILE" <<'PHP'
+          <?php
+          return ['db_host'=>'127.0.0.1','db_port'=>3306,'db_name'=>'palpa_test','db_user'=>'palpa','db_password'=>'solo-ci',
+            'install_key'=>'clave-de-ci-palpa-0123456789abcdef0123456789','secure_cookies'=>false,'timezone'=>'America/Lima','smtp'=>['enabled'=>false]];
+          PHP
+      - name: Pruebas PHP (instalación, permisos, académico, correo, alertas, seguridad, migraciones)
+        run: bash tests/run.sh
+  browser:
+    name: Navegador · Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: palpa_test
+          MARIADB_USER: palpa
+          MARIADB_PASSWORD: solo-ci
+          MARIADB_ROOT_PASSWORD: solo-ci-root
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, openssl, fileinfo, zlib
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Playwright y Chromium
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw" && cd "$RUNNER_TEMP/pw" && npm init -y >/dev/null && npm install --no-audit --no-fund playwright@1.49.1
+          npx playwright install --with-deps chromium
+          echo "NODE_PATH=$RUNNER_TEMP/pw/node_modules" >> "$GITHUB_ENV"
+          echo "CHROMIUM_PATH=$(node -e "console.log(require('playwright').chromium.executablePath())")" >> "$GITHUB_ENV"
+      - name: Configuración de pruebas (base desechable _test, SMTP desactivado)
+        run: |
+          mkdir -p "$(dirname "$PORTAL_CONFIG_FILE")"
+          cat > "$PORTAL_CONFIG_FILE" <<'PHP'
+          <?php
+          return ['db_host'=>'127.0.0.1','db_port'=>3306,'db_name'=>'palpa_test','db_user'=>'palpa','db_password'=>'solo-ci',
+            'install_key'=>'clave-de-ci-palpa-0123456789abcdef0123456789','secure_cookies'=>false,'timezone'=>'America/Lima','smtp'=>['enabled'=>false]];
+          PHP
+      - name: Pruebas de navegador (intranet, servicios públicos, PDF, correo)
+        env:
+          PORTAL_BASE_URL: http://127.0.0.1:8084
+        run: bash tests/run.sh --browser

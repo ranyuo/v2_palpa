@@ -1590,8 +1590,8 @@ a.db-kpi:hover{transform:translateY(-3px);box-shadow:var(--sh2);border-color:var
 .toast.warn{border-left-color:#fbbf24}
 
 </style>
-<script src="/assets/vendor/jspdf.umd.min.js" defer></script>
-<script src="/assets/vendor/jspdf.plugin.autotable.min.js" defer></script>
+<script src="/assets/vendor/jspdf.umd.min.js?v=4.2.1" defer></script>
+<script src="/assets/vendor/jspdf.plugin.autotable.min.js?v=5.0.9" defer></script>
 <script src="/assets/vendor/xlsx.full.min.js" defer></script>
 <script src="/assets/vendor/qrcode.min.js" defer></script>
 <style id="portal-css">

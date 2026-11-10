@@ -64,6 +64,13 @@ final class PortalApp
 
     public function __construct(private readonly array $config,private readonly ?string $configFile=null) {}
 
+    /** Meses que se conserva la auditoría del servidor ('audit_retention_months'; 0 = sin límite). */
+    public function auditRetentionMonths(): int
+    {
+        $months=$this->config['audit_retention_months']??24;
+        if(!is_int($months)||$months<0)throw new PortalError(503,'audit_retention_months debe ser un entero mayor o igual a 0.');
+        return $months===0?0:max(6,$months);
+    }
     private function smtpSettings(): SmtpSettings
     {return new SmtpSettings($this->config,$this->configFile);}
 
@@ -76,6 +83,19 @@ final class PortalApp
         $result=$this->smtpSettings()->save($input);
         PortalAudit::write($this,'Configurar correo SMTP','Configuración','SMTP');
         return $result;
+    }
+
+    /** Envía un correo de prueba con la configuración guardada; por defecto al correo de la cuenta administradora. */
+    public function testSmtp(array $input): array
+    {
+        $admin=$this->requireAdmin();$this->rate('smtp-test',5,300);
+        $to=$input['to']??'';if($to===''||$to===null)$to=$admin['correo']??'';
+        if(!is_string($to)||strlen($to)>254||!filter_var($to,FILTER_VALIDATE_EMAIL))throw new PortalError(422,'Indica un correo destinatario válido para la prueba.');
+        $raw=$this->db()->query('SELECT data FROM intranet_state WHERE id=1')->fetchColumn();
+        $institution=(is_string($raw)?json_decode($raw,true):[])['config']['inst']['nombre']??'la institución';
+        $result=(new PortalMail($this->smtpSettings()->read()))->sendTest($this->db(),$to,is_string($institution)?$institution:'la institución');
+        PortalAudit::write($this,'Probar correo SMTP','Configuración','SMTP',['destinatario'=>$to,'resultado'=>$result['ok']?'Aceptado':'Rechazado']);
+        return $result+['to'=>$to];
     }
 
     public function processMail(int $limit=10,?string $recordId=null): array
@@ -308,7 +328,7 @@ final class PortalApp
             $incoming=isset($input['patch'])?PortalPatch::apply($visible,$input['patch']):$input['data'];
             IntranetScope::assertChanges($visible,$incoming);
             $data=PortalPolicy::apply($previous,$visible,$incoming,$user);
-            PortalRules::structure($data);
+            PortalRules::structure($data);PortalRules::stateShape($previous,$data);
             $ops=$input['accounts']??[];if(!is_array($ops)||count($ops)>100)throw new PortalError(422,'Operaciones de cuentas no válidas.');
             foreach($ops as $operation){if(!is_array($operation))throw new PortalError(422,'Cuenta no válida.');$this->accountOperation($operation);}
             $aliases=[];$data=PortalFiles::persist($this,$data,$aliases,0,$previous);

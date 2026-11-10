@@ -88,6 +88,8 @@ function portal_error(Throwable $error, bool $json = false): never
     } else {
         $status = 503;
         $message = 'No se pudo completar la operación. Revisa la configuración de MySQL o consulta al responsable del sitio.';
+        // Base vacía (instalación nueva): se indica el instalador en lugar del error genérico.
+        if ($error instanceof PDOException && $error->getCode() === '42S02') $message = 'La intranet aún no está instalada. Abre /install.php para crear las tablas y la cuenta administradora.';
         error_log('Intranet Palpa: '.get_class($error).' ('.$error->getCode().')');
     }
     if ($json) {

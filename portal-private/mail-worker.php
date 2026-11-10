@@ -3,7 +3,12 @@ declare(strict_types=1);
 if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
 require __DIR__.'/bootstrap.php';
 try {
-    $result=portal_app()->processMail(10);
+    $app=portal_app();
+    // La depuración diaria de auditoría no debe impedir el envío de correo.
+    try{PortalAudit::purge($app);}catch(Throwable $error){fwrite(STDERR,"No se pudo depurar la auditoría antigua.\n");}
+    // Constancia de ejecución: el panel avisa si el cron deja de correr.
+    try{PortalMail::mark($app->db(),'mail_worker_last_run');}catch(Throwable $error){fwrite(STDERR,"No se pudo registrar la ejecución del cron de correo.\n");}
+    $result=$app->processMail(10);
     echo json_encode($result,JSON_THROW_ON_ERROR)."\n";
     if(($result['configured']??true)===false||$result['failed']>0)exit(1);
 } catch(Throwable $error) {

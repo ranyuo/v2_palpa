@@ -37,6 +37,7 @@ trait PortalForms
             if(!$area||!($area['activo']??false))throw new PortalError(422,'Selecciona un área de destino activa.');
         }
         if($type==='reclamos'&&in_array($record['condicion'],['Estudiante','Egresado'],true)&&empty($record['programaId']))throw new PortalError(422,'Selecciona el programa de estudios.');
+        if($type==='reclamos'&&!empty($record['adjunto'])&&(!in_array($record['adjunto']['type'],['application/pdf','image/jpeg','image/png'],true)||$record['adjunto']['size']>10*1048576))throw new PortalError(422,'La evidencia del reclamo debe ser PDF, JPG o PNG de hasta diez MB.');
         if($type==='reclamos'&&(preg_match_all('/./us',$record['descripcion'])>(int)($data['config']['limites']['descripcion']??10000)||preg_match_all('/./us',$record['pedido'])>(int)($data['config']['limites']['pedido']??5000)))throw new PortalError(422,'La descripción o el pedido excede el límite configurado.');
         if($type==='expedientes'){$c=$data['config']['mpv'];if(!in_array($record['tipoTramite'],$c['tipos']??[],true))throw new PortalError(422,'Selecciona un tipo de documento configurado en Mesa de Partes.');if(count($record['archivos'])>($c['maxArchivos']??5))throw new PortalError(422,'Demasiados adjuntos.');foreach($record['archivos'] as $file)if(!in_array(strtolower(pathinfo($file['original'],PATHINFO_EXTENSION)),$c['formatos']??[],true)||$file['size']>(int)($c['maxMB']??40)*1048576)throw new PortalError(422,'El adjunto excede los límites o formatos configurados.');}
         return $record;

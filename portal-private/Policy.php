@@ -54,7 +54,7 @@ final class PortalPolicy
         return ['slides'=>'portada','enlaces'=>'enlaces','categoriasNoticia'=>'noticias','tiposDocumento'=>'documentos','tupaDocs'=>'tupa','tiposBeca'=>'becas','becasPeriodos'=>'becas','becarios'=>'becas','personas'=>'docentes'][$key]??$key;
     }
 
-    public static function role(array $user): string { return $user['rol'] ?? 'admin'; }
+    public static function role(array $user): string { return $user['rol'] ?? 'publico'; }
     public static function can(array $user, string $module): bool
     {
         return in_array($module,IntranetScope::MODULES,true) && (self::role($user)==='admin' || in_array($module,self::definitions()['roles'][self::role($user)]['mods']??[],true));
@@ -64,7 +64,7 @@ final class PortalPolicy
         if (self::role($user)==='admin') return 2;
         $role=self::ACADEMIC_ROLES[self::role($user)]??'';
         $portalModule=['alumnos'=>'ix-alumnos','horarios'=>'ix-horarios','certificados'=>'ix-certificados','titulos'=>'ix-titulos','bolsa'=>'ix-bolsa','config'=>'ix-config','usuarios'=>'usuarios','docentes'=>'cvdocente'][$module]??'';
-        if ($module==='docentes' && self::role($user)==='docente') return 2;
+        if ($module==='docentes' && self::role($user)==='docente') return self::can($user,'cvdocente')?2:0;
         if (!$portalModule || !self::can($user,$portalModule)) return 0;
         return min(2,max(0,(int)($data['academico']['perms'][$role][$module]??0)));
     }
@@ -122,6 +122,7 @@ final class PortalPolicy
     public static function key(string $path,array $row): string
     {
         if(isset($row['id']))return 'id:'.(string)$row['id'];
+        if($path==='academico.docs')return 'cod:'.(string)($row['cod']??'');
         if(str_ends_with($path,'perfilesLab'))return 'est:'.(string)($row['est']??'');
         if(str_ends_with($path,'perfilesDoc'))return 'doc:'.(string)($row['doc']??'');
         if(str_ends_with($path,'estadisticas'))return ($row['anio']??'').'|'.($row['programaId']??'');
@@ -235,6 +236,9 @@ final class PortalPolicy
             $ownContact=in_array($role,['estudiante','egresado'],true)&&$key==='estudiantes';
             $ownDocument=in_array($role,['estudiante','egresado'],true)&&$key==='docs';
             $company=$role==='empresa'&&in_array($key,['empresas','ofertas','postulaciones'],true);
+            if(($ownProfile||$company)&&!self::can($user,'ix-bolsa'))throw new PortalError(403,'Tu perfil no tiene habilitado el módulo de Bolsa Laboral.');
+            if($docProfile&&!self::can($user,'cvdocente'))throw new PortalError(403,'Tu perfil no tiene habilitado el módulo de CV docente.');
+            if($ownDocument&&!self::can($user,'ix-certificados')&&!self::can($user,'ix-titulos'))throw new PortalError(403,'Tu perfil no tiene habilitada la emisión de documentos.');
             if(!$module||(!$ownProfile&&!$docProfile&&!$company&&!$ownContact&&!$ownDocument&&self::level($full,$user,$module)<2))throw new PortalError(403,'Tu rol no puede modificar el módulo académico '.$key.'.');
             if($key==='cfg'){
                 if($role==='coordinador')throw new PortalError(403,'Los parámetros generales requieren Secretaría o Administración.');

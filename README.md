@@ -32,6 +32,10 @@ PHP 8.2 o posterior, PDO MySQL, sesiones, Fileinfo, Zlib y MySQL/MariaDB. La cua
 
 El despliegue y la vinculación desde la web oficial se coordinan por separado. La aplicación usa rutas desde la raíz: debe instalarse como aplicación independiente con su propia raíz web; su alojamiento concreto aún no se ha configurado. No requiere editar ni sustituir la web de Palpa.
 
+La auditoría se conserva 24 meses por defecto: el cron (`cron.php` o `mail-worker.php`) borra una vez al día los registros más antiguos y deja constancia de la depuración. Se ajusta con `audit_retention_months` en `config.php` (mínimo 6; `0` conserva todo). Los textos iniciales más largos que el límite de su formulario se recortan al cargarse para que el registro pueda volver a guardarse. Si la base existe pero está vacía, la intranet indica abrir `/install.php`.
+
+Los PDF se generan en el navegador con jsPDF 4.2.1 y jsPDF-AutoTable 5.0.9, servidos localmente; sus versiones, hashes y licencias están en `public_html/assets/vendor/` (`versions.json`, `FUENTES.md`) y `tests/vendor-audit.py` los verifica.
+
 En una instalación existente, respalda archivos y base antes de actualizar el código. `/actualizar.php` conserva los datos y actualiza el esquema; la opción de reemplazar contenido público está deshabilitada en esta intranet.
 
 ## Pruebas
@@ -43,6 +47,16 @@ PORTAL_CONFIG_FILE=/ruta/config.test.php php tests/intranet.php
 PORTAL_CONFIG_FILE=/ruta/config.test.php php -S 127.0.0.1:8084 -t public_html
 PORTAL_BASE_URL=http://127.0.0.1:8084 node tests/browser-intranet.cjs
 ```
+
+Para correr todas las suites en el orden correcto (cada una sobre el estado que preparan `tests/intranet.php` y `tests/mail.php`):
+
+```sh
+PORTAL_CONFIG_FILE=/ruta/config.test.php bash tests/run.sh
+PORTAL_CONFIG_FILE=/ruta/config.test.php CHROMIUM_PATH=/ruta/chromium bash tests/run.sh --browser
+python3 tests/vendor-audit.py --advisories
+```
+
+GitHub Actions (`.github/workflows/qa.yml`) ejecuta lo mismo en cada push y pull request: integridad y avisos de seguridad de las bibliotecas del navegador, sintaxis, todas las pruebas PHP con MariaDB 10.11 en PHP 8.2 y 8.3, y todas las pruebas de navegador con Chromium. Usa una base y credenciales desechables propias del CI; no necesita secretos.
 
 Las pruebas web requieren Playwright y Chromium externos; `CHROMIUM_PATH` indica el ejecutable (por defecto, `/usr/bin/chromium`). El servidor debe usar la misma base que la prueba PHP. En este entorno se dispone de los contenedores `app-php` y `app-db`, configuración privada en `/workspace/app-dev/config.test.php`, base `app_test` y Playwright en `/workspace/nasca-dev/tools/node_modules`.
 
@@ -57,7 +71,7 @@ docker exec -w /workspace/app app-php php tests/intranet.php && docker exec -w /
 docker exec -w /workspace/app app-php php tests/intranet.php && NODE_PATH=/workspace/nasca-dev/tools/node_modules PORTAL_BASE_URL=http://127.0.0.1:8084 node tests/browser-qa-correcciones.cjs
 ```
 
-Se retiraron los informes, paquetes y suites históricas del portal completo; se conservan las seis pruebas vigentes de esta intranet. `tests/legacy-migration.php` comprueba el paso de las tablas heredadas `pisco_*` a `intranet_*` y la restauración de respaldos `.piscobak`. Las pruebas actuales evalúan el alcance reducido, los permisos y los recorridos conservados. El correo saliente para nuevos trámites requiere habilitar SMTP y cron según [NOTIFICACIONES-CORREO.md](NOTIFICACIONES-CORREO.md). La carga de información académica real sigue pendiente de configuración institucional.
+Se retiraron los informes, paquetes y suites históricas del portal completo; se conservan las pruebas vigentes de esta intranet. `tests/legacy-migration.php` comprueba el paso de las tablas heredadas `pisco_*` a `intranet_*` y la restauración de respaldos `.piscobak`. Las pruebas actuales evalúan el alcance reducido, los permisos y los recorridos conservados. El correo saliente para nuevos trámites requiere habilitar SMTP y cron según [NOTIFICACIONES-CORREO.md](NOTIFICACIONES-CORREO.md). La carga de información académica real sigue pendiente de configuración institucional.
 
 ## Paquete para Hostinger
 

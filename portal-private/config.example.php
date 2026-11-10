@@ -26,7 +26,8 @@ return [
         'from_name' => 'Notificaciones · IES Público Palpa',
     ],
     // Autocompletado de nombres por DNI y razón social por RUC en Mesa de Partes (MIGO API v2, https://docs.migo.pe/v2).
-    // Crea el token en https://api.migo.pe/tokens. Es privado: escríbelo solo en config.php del hosting, nunca en el repositorio.
+    // Recomendado: configúralo en Configuración → Consulta de DNI y RUC (API); se guarda cifrado y tiene prioridad sobre este bloque.
+    // Si lo usas aquí, el token es privado: escríbelo solo en config.php del hosting, nunca en el repositorio.
     'document_lookup' => [
         'enabled' => false,
         'provider' => 'migo', // Alternativa: 'decolecta' con base_url https://api.decolecta.com/v1.

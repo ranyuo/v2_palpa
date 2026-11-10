@@ -37,7 +37,7 @@ La batería existente se ejecutó secuencialmente, reiniciando las fixtures dond
 
 ## Comprobaciones necesarias al desplegar
 
-1. Respaldar los archivos y MySQL de producción. Conservar `config.php`, `install_key` y `.smtp-settings.json`.
+1. Respaldar los archivos y MySQL de producción. Conservar `config.php`, `install_key` y `.smtp-settings.json` y `.document-lookup.json`.
 2. Aplicar `/actualizar.php` de esta versión para completar el esquema 7 y retirar el actualizador al terminar.
 3. Revisar receptores de Mesa de Partes, Reclamos, Bolsa Laboral y áreas. Comprobar la cuenta central de Workspace en el formulario SMTP.
 4. Configurar/verificar el cron privado de `mail-worker.php` cada minuto. Sin cron los avisos de gestión pendientes no se entregarán regularmente.

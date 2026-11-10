@@ -94,6 +94,6 @@ check($r === ['tipoDoc' => 'RUC', 'numDoc' => '20131312955', 'razon' => 'SUPERIN
 
 $view = file_get_contents(dirname(__DIR__).'/portal-private/views/portal.php');
 check(str_contains($view, "portalURL('/api/identidad')") && str_contains($view, 'bindIdentityLookup(f);'), 'Mesa de Partes usa el autocompletado');
-check(str_contains(file_get_contents(dirname(__DIR__).'/portal-private/Portal.php'), "'documentLookup'=>\$this->documentLookup()->enabled()"), 'el navegador solo recibe si la consulta está habilitada, nunca el token');
+check(str_contains(file_get_contents(dirname(__DIR__).'/portal-private/Portal.php'), "'documentLookup'=>\$this->documentLookupEnabled(),"), 'el navegador solo recibe si la consulta está habilitada, nunca el token');
 
 echo "Autocompletado de DNI/RUC correcto.\n";

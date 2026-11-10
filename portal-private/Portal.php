@@ -192,7 +192,7 @@ final class PortalApp
         $data=IntranetScope::project(PortalPolicy::project($full,$user,$this->publicData($full)));
         $data['usuarios']=$this->visibleAccounts($user,$full);
         if($user&&$user['rol']==='admin'){$data['auditoria']=[...PortalAudit::rows($this),...PortalAudit::legacy($this,$full)];$data['academico']['bitacora']=array_map(fn($r)=>['id'=>$r['id'],'f'=>$r['fecha'],'u'=>$r['usuario'],'a'=>$r['accion'],'m'=>$r['entidad'],'d'=>$r['registro'].' · '.$r['detalle']],PortalAudit::rows($this));}
-        return ['data'=>$data,'revision'=>(int)$state['revision'],'user'=>$user,'csrf'=>$_SESSION['csrf'],'numberingYear'=>(int)date('Y'),'schema_version'=>PortalSchema::VERSION,'roles'=>PortalPolicy::definitions()['roles'],'documentLookup'=>$this->documentLookup()->enabled(),'scope'=>['mode'=>'intranet','website'=>'https://www.istpalpa.edu.pe/','modules'=>IntranetScope::MODULES]];
+        return ['data'=>$data,'revision'=>(int)$state['revision'],'user'=>$user,'csrf'=>$_SESSION['csrf'],'numberingYear'=>(int)date('Y'),'schema_version'=>PortalSchema::VERSION,'roles'=>PortalPolicy::definitions()['roles'],'documentLookup'=>$this->documentLookupEnabled(),'scope'=>['mode'=>'intranet','website'=>'https://www.istpalpa.edu.pe/','modules'=>IntranetScope::MODULES]];
     }
     public function input(): array
     {
@@ -573,18 +573,49 @@ final class PortalApp
         return $result;
     }
 
-    private function documentLookup(): PortalDocumentLookup
-    {return new PortalDocumentLookup(is_array($this->config['document_lookup']??null)?$this->config['document_lookup']:[]);}
+    private function documentLookupSettings(): PortalDocumentLookupSettings
+    {return new PortalDocumentLookupSettings($this->config,$this->configFile);}
+
+    private function documentLookup(?array $settings=null): PortalDocumentLookup
+    {return new PortalDocumentLookup($settings??$this->documentLookupSettings()->read());}
+
+    /** Si la configuración protegida no se puede leer, el portal sigue funcionando sin autocompletado. */
+    private function documentLookupEnabled(): bool
+    {try{return $this->documentLookup()->enabled();}catch(PortalError){return false;}}
 
     /** Autocompleta nombres (DNI) o razón social (RUC) en los formularios públicos. */
     public function identity(array $input): array
     {
         $input=self::validate($input,['tipoDoc'=>'required|string|max:10','numDoc'=>'required|string|max:12']);
-        $service=$this->documentLookup();
+        $settings=$this->documentLookupSettings()->read();$service=$this->documentLookup($settings);
         if(!$service->enabled())throw new PortalError(503,'La consulta automática de documentos no está habilitada.');
-        // Límite por IP: evita usar el formulario para recorrer el padrón.
-        $this->rate('identity',8,60);$this->rate('identity-hour',40,3600);
+        // Límite por IP configurable: evita usar el formulario para recorrer el padrón.
+        $this->rate('identity',(int)$settings['per_minute'],60);$this->rate('identity-hour',(int)$settings['per_hour'],3600);
         return ['record'=>$service->find($input['tipoDoc'],$input['numDoc'])];
+    }
+
+    public function documentLookupForm(): array
+    {$this->requireAdmin();return $this->documentLookupSettings()->view();}
+
+    public function saveDocumentLookup(array $input): array
+    {
+        $this->requireAdmin();$this->rate('identity-settings',20,60);
+        $result=$this->documentLookupSettings()->save($input);
+        PortalAudit::write($this,'Configurar API de documentos','Configuración','DNI/RUC',['proveedor'=>$result['provider'],'estado'=>$result['enabled']?'Habilitada':'Deshabilitada']);
+        return $result;
+    }
+
+    /** Prueba la configuración guardada con un DNI o RUC elegido por el administrador, aunque esté deshabilitada. */
+    public function testDocumentLookup(array $input): array
+    {
+        $this->requireAdmin();$this->rate('identity-test',10,300);
+        $input=self::validate($input,['tipoDoc'=>'required|string|max:10','numDoc'=>'required|string|max:12']);
+        $settings=$this->documentLookupSettings()->read();
+        if(trim((string)$settings['token'])==='')throw new PortalError(422,'Guarda primero un token para probar la API.');
+        try{$record=$this->documentLookup([...$settings,'enabled'=>true])->find($input['tipoDoc'],$input['numDoc']);$result=['ok'=>true,'record'=>$record,'message'=>'La API respondió correctamente.'];}
+        catch(PortalError $error){if($error->status===422)throw $error;$result=['ok'=>false,'message'=>$error->getMessage()];}
+        PortalAudit::write($this,'Probar API de documentos','Configuración','DNI/RUC',['tipo'=>strtoupper($input['tipoDoc']),'resultado'=>$result['ok']?'Correcto':'Error']);
+        return $result;
     }
 
     public function lookup(string $type, array $input): array

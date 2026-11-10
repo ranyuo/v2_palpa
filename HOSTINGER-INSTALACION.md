@@ -62,23 +62,17 @@ Los formularios de recepción y seguimiento funcionan en la aplicación. El regi
 
 ### Autocompletado de DNI y RUC en Mesa de Partes
 
-Al escribir un DNI de 8 dígitos, la Mesa de Partes completa nombres y apellidos. Con un RUC de 11 dígitos completa la razón social, la dirección, el estado y la condición. Las consultas usan [MIGO API v2](https://docs.migo.pe/v2). El navegador consulta a la intranet (`/api/identidad`) y la intranet consulta a MIGO, así que el token nunca llega al navegador. Los campos siguen siendo editables, y si la API no responde, el ciudadano los completa a mano.
+Al escribir un DNI de 8 dígitos, la Mesa de Partes completa nombres y apellidos. Con un RUC de 11 dígitos completa la razón social, la dirección, el estado y la condición. El proveedor por defecto es [MIGO API v2](https://docs.migo.pe/v2). El navegador consulta a la intranet (`/api/identidad`) y la intranet consulta al proveedor, así que el token nunca llega al navegador. Los campos siguen siendo editables, y si la API no responde, el ciudadano los completa a mano.
 
 1. Crea o copia el token en <https://api.migo.pe/tokens>.
-2. En `portal-private/config.php` del hosting (no en el repositorio), añade:
+2. Inicia sesión como administrador y abre **Configuración → Consulta de DNI y RUC (API)**.
+3. Elige el proveedor (MIGO API v2 o Decolecta). La URL base se completa sola; cámbiala solo si el proveedor indica otra (siempre `https://`).
+4. Pega el token, marca **Activar autocompletado por DNI y RUC**, ajusta los límites y pulsa **Guardar configuración de la API**.
+5. Usa **Probar la API** con un RUC o DNI para confirmar el token. La prueba funciona aunque el autocompletado esté desactivado.
 
-   ```php
-   'document_lookup' => [
-       'enabled' => true,
-       'provider' => 'migo',
-       'base_url' => 'https://api.migo.pe/api/v2',
-       'token' => 'TU_TOKEN_DE_MIGO',
-   ],
-   ```
+El token se guarda cifrado en `portal-private/.document-lookup.json` con la `install_key`, y el formulario solo muestra sus cuatro últimos caracteres. Para cambiarlo, pega uno nuevo; para quitarlo, marca **Borrar el token guardado**. Conserva este archivo y la `install_key` en los respaldos, igual que `.smtp-settings.json`. Como alternativa, se puede poner un bloque `'document_lookup'` en `config.php` (ver `config.example.php`), pero lo guardado desde el formulario tiene prioridad. PHP necesita la extensión cURL.
 
-3. Comprueba que PHP tenga la extensión cURL y abre la Mesa de Partes para probar un DNI.
-
-Cada IP puede hacer como máximo 8 consultas por minuto y 40 por hora, para que nadie use el formulario para recorrer el padrón. Cada consulta consume créditos del plan de MIGO. Si cambias el token, solo actualiza `config.php`.
+Los límites por visitante (IP) evitan que alguien use el formulario para recorrer el padrón. Por defecto son 8 consultas por minuto y 40 por hora, y se cambian en el mismo formulario. Cada consulta consume créditos del plan del proveedor.
 
 Si se necesitan adjuntos grandes, ajusta los límites PHP de subida y de POST según el tamaño admitido por la aplicación y el plan, y verifica una carga real antes de habilitar el servicio institucional.
 

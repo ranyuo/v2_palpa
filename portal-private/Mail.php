@@ -7,6 +7,11 @@ require_once __DIR__.'/vendor/phpmailer/src/SMTP.php';
 /** Cola privada: se confirma junto al trámite y se entrega después del commit. */
 final class PortalMail
 {
+    public const AUTH_ERROR='SMTP rechazó el usuario o la contraseña. Revise la cuenta de envío y la contraseña de aplicación.';
+    public const GENERIC_ERROR='SMTP no confirmó el envío. Revise credenciales, conexión y destinatario.';
+    /** Minutos de atraso a partir de los cuales se considera que el cron de correo no está corriendo. */
+    public const WORKER_GRACE_MINUTES=15;
+
     public function __construct(private readonly array $config) {}
 
     public function ready(): bool
@@ -49,7 +54,57 @@ final class PortalMail
         $app->requireAdmin();
         $rows=$app->db()->query('SELECT id,source_type,event,reference,recipient,status,attempts,last_error,created_at,sent_at FROM intranet_mail ORDER BY created_at DESC,id LIMIT 30')->fetchAll();
         return ['enabled'=>($this->config['enabled']??false)===true,'configured'=>$this->ready(),
-            'from'=>$this->config['from_email']??'notificaciones@proyectos.pe','messages'=>$rows,'warnings'=>$this->warnings($app)];
+            'from'=>$this->config['from_email']??'notificaciones@proyectos.pe','messages'=>$rows,
+            'worker_last_run'=>self::localTime(self::stamp($app->db(),'mail_worker_last_run')),'warnings'=>$this->warnings($app)];
+    }
+
+    /**
+     * Mensaje seguro para el panel según el tipo de fallo SMTP.
+     * Solo se mira el texto fijo de PHPMailer; nunca se guarda el diálogo SMTP ni datos del servidor.
+     */
+    public static function failure(Throwable $error): string
+    {
+        if($error instanceof InvalidArgumentException)return 'Configuración SMTP no válida.';
+        $text=$error->getMessage();
+        if(stripos($text,'Could not authenticate')!==false)return self::AUTH_ERROR;
+        if(stripos($text,'Could not connect')!==false||stripos($text,'Failed to connect')!==false)return 'No se pudo conectar con el servidor SMTP. Revise servidor, puerto, cifrado y la red del hosting.';
+        if(stripos($text,'recipients failed')!==false)return 'El servidor SMTP rechazó el destinatario. Revise la dirección de correo.';
+        return self::GENERIC_ERROR;
+    }
+
+    /** Marcas de tiempo (UTC) del correo: última ejecución del cron, último envío aceptado y último rechazo de la cuenta. */
+    public static function mark(PDO $db,string $key): void
+    {
+        $db->prepare('INSERT INTO intranet_settings (setting_key,setting_value) VALUES (?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)')
+            ->execute([$key,json_encode(gmdate('Y-m-d H:i:s'),JSON_THROW_ON_ERROR)]);
+    }
+
+    public static function stamp(PDO $db,string $key): ?string
+    {
+        $get=$db->prepare('SELECT setting_value FROM intranet_settings WHERE setting_key=?');$get->execute([$key]);
+        $value=$get->fetchColumn();$value=is_string($value)?json_decode($value,true):null;
+        return is_string($value)&&preg_match('/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/D',$value)?$value:null;
+    }
+
+    /** Fecha local legible de una marca UTC. */
+    public static function localTime(?string $utc): ?string
+    {return $utc===null?null:(new DateTimeImmutable($utc,new DateTimeZone('UTC')))->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('d/m/Y H:i');}
+
+    /** Envía un correo de prueba con la configuración guardada, sin pasar por la cola. */
+    public function sendTest(PDO $db,string $to,string $institution): array
+    {
+        // Se permite probar antes de activar el envío; solo hace falta la cuenta y la contraseña guardadas.
+        if(empty($this->config['username'])||empty($this->config['password']))throw new PortalError(409,'Primero guarda la cuenta SMTP y su contraseña de aplicación.');
+        $now=date('d/m/Y H:i');
+        try{
+            $this->send(['id'=>bin2hex(random_bytes(16)),'recipient'=>$to,'subject'=>'Correo de prueba de la intranet',
+                'body'=>"Este es un correo de prueba enviado desde la intranet de $institution el $now.\n\nSi lo recibió, la configuración SMTP funciona correctamente. No es necesario responder.\n"]);
+        }catch(Throwable $error){
+            $message=self::failure($error);if($message===self::AUTH_ERROR)self::mark($db,'mail_last_auth_error');
+            return ['ok'=>false,'message'=>$message];
+        }
+        self::mark($db,'mail_last_ok');
+        return ['ok'=>true,'message'=>"Correo de prueba aceptado por el servidor SMTP para $to. Revise la bandeja de entrada y la de spam."];
     }
 
     private function warnings(PortalApp $app): array
@@ -57,6 +112,20 @@ final class PortalMail
         $raw=$app->db()->query('SELECT data FROM intranet_state WHERE id=1')->fetchColumn();$data=json_decode($raw,true,flags:JSON_THROW_ON_ERROR);$warnings=[];
         if(empty($data['config']['lr']['correo'])&&empty($data['config']['correoReclamos']))$warnings[]='Configura el correo responsable del Libro de Reclamaciones.';
         if(empty($data['config']['bolsa']['correo']))$warnings[]='Configura el correo responsable de Bolsa Laboral.';
+        if(!$this->ready())return $warnings;
+        $db=$app->db();
+        // Cron detenido: hay avisos que debieron salir hace más de 15 minutos y siguen en cola.
+        $late=(int)$db->query("SELECT COUNT(*) FROM intranet_mail WHERE status IN ('Pendiente','Error') AND attempts<5 AND next_attempt_at<DATE_SUB(UTC_TIMESTAMP(),INTERVAL ".self::WORKER_GRACE_MINUTES." MINUTE)")->fetchColumn();
+        if($late>0){
+            $last=self::localTime(self::stamp($db,'mail_worker_last_run'));
+            $warnings[]="Hay $late aviso(s) con más de ".self::WORKER_GRACE_MINUTES.' minutos de atraso. Revise que el cron de correo (portal-private/mail-worker.php) esté programado en el hosting. '
+                .($last?"Última ejecución registrada del cron: $last.":'No hay ninguna ejecución registrada del cron.');
+        }
+        // Cuenta SMTP rechazada: dos o más avisos con fallo de autenticación y ningún envío aceptado desde el último rechazo.
+        $auth=$db->prepare("SELECT COUNT(*) FROM intranet_mail WHERE status='Error' AND last_error=?");$auth->execute([self::AUTH_ERROR]);
+        $rejected=self::stamp($db,'mail_last_auth_error');$accepted=self::stamp($db,'mail_last_ok');
+        if((int)$auth->fetchColumn()>=2&&$rejected!==null&&($accepted===null||$accepted<$rejected))
+            $warnings[]='El servidor SMTP está rechazando la cuenta de envío (usuario o contraseña). Los avisos no saldrán hasta corregirla: genere una nueva contraseña de aplicación, guárdela y use «Enviar correo de prueba».';
         return $warnings;
     }
 
@@ -97,14 +166,15 @@ final class PortalMail
                     $this->send($row);
                 }catch(Throwable $error){
                     // Nunca persistir ErrorInfo, el diálogo SMTP, contraseñas o tokens.
-                    $message=$error instanceof InvalidArgumentException?'Configuración SMTP no válida.':'SMTP no confirmó el envío. Revise credenciales, conexión y destinatario.';
+                    $message=self::failure($error);
+                    if($message===self::AUTH_ERROR)self::mark($db,'mail_last_auth_error');
                     $delay=min(3600,60*(2**($attempt-1)));
                     $db->prepare("UPDATE intranet_mail SET status='Error',attempts=?,last_error=?,next_attempt_at=DATE_ADD(UTC_TIMESTAMP(),INTERVAL $delay SECOND) WHERE id=?")
                         ->execute([$attempt,$message,$row['id']]);
                     $result['failed']++;continue;
                 }
                 $db->prepare("UPDATE intranet_mail SET status='Enviado',attempts=?,sent_at=UTC_TIMESTAMP(),next_attempt_at=NULL,last_error=NULL WHERE id=?")
-                    ->execute([$attempt,$row['id']]);$result['sent']++;
+                    ->execute([$attempt,$row['id']]);$result['sent']++;self::mark($db,'mail_last_ok');
             }
             // Mantener fallos/pendientes para revisión; eliminar contenido entregado antiguo.
             $db->exec("DELETE FROM intranet_mail WHERE status IN ('Enviado','Cancelado') AND created_at<DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 DAY)");

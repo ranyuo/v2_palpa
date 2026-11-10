@@ -92,7 +92,7 @@ function portalNormalizeAutomaticChanges(){
 }
 function portalPatch(before,after){
  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);const result=[];
- const key=(path,row)=>row&&row.id!==undefined?'id:'+row.id:path.endsWith('perfilesLab')?'est:'+row.est:path.endsWith('perfilesDoc')?'doc:'+row.doc:path.endsWith('estadisticas')?(row.anio||'')+'|'+(row.programaId||''):null;
+ const key=(path,row)=>row&&row.id!==undefined?'id:'+row.id:path==='academico.docs'?'cod:'+row.cod:path.endsWith('perfilesLab')?'est:'+row.est:path.endsWith('perfilesDoc')?'doc:'+row.doc:path.endsWith('estadisticas')?(row.anio||'')+'|'+(row.programaId||''):null;
  const add=(path,a,b)=>{if(same(a,b))return;const name=path.join('.');
   if(Array.isArray(a)&&Array.isArray(b)&&[...a,...b].every(r=>r&&typeof r==='object'&&key(name,r)!==null)){
     const old=new Map(a.map(r=>[key(name,r),r])),next=new Map(b.map(r=>[key(name,r),r]));const changes=[];

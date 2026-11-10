@@ -43,7 +43,7 @@ required = {'NOTIFICACIONES-CORREO.md', 'portal-private/Mail.php', 'portal-priva
             'public_html/standalone-services.js', 'public_html/mesa-de-partes.php', 'public_html/libro-de-reclamaciones.php', 'public_html/bolsa-laboral.php', 'public_html/certificados.php', 'public_html/academic-documents.js', 'portal-private/AcademicDocuments.php', 'public_html/index.php', 'public_html/intranet.js', 'public_html/intranet.css',
             'public_html/.htaccess', 'portal-private/IntranetScope.php', 'portal-private/.htaccess',
             'portal-private/config.example.php', 'portal-private/schema.sql', 'portal-private/data/portal.json',
-            'public_html/assets/vendor/bootstrap/bootstrap-grid.min.css'}
+            'public_html/assets/vendor/bootstrap/bootstrap-grid.min.css', 'public_html/assets/vendor/jspdf.umd.min.js', 'public_html/assets/vendor/jspdf.plugin.autotable.min.js'}
 if required - set(files):
     raise SystemExit(f'Faltan archivos: {sorted(required - set(files))}')
 output.parent.mkdir(parents=True, exist_ok=True)

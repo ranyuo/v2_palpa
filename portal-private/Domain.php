@@ -58,6 +58,9 @@ final class PortalDomain
         }
         foreach(self::changedRows($o['sesiones'],$a['sesiones'],'academico.sesiones') as $r){
             self::required($r,['per','prog','ciclo','sec','turno','ud','dia','ini','fin'],'Clase');
+            foreach(['prog','ud','doc','amb'] as $field)if(isset($r[$field])&&$r[$field]!==''&&$r[$field]!==null&&(!is_int($r[$field])||$r[$field]<1))throw new PortalError(422,'Referencia de clase no válida: '.$field.'.');
+            PortalAcademic::validateGroup($r);
+            if(!PortalAcademic::validPeriod($r['per'])||!in_array($r['dia'],PortalAcademic::DAYS,true))throw new PortalError(422,'Periodo o día de clase no válido.');
             self::foreign($a['programas'],$r['prog'],'Programa');$ud=self::foreign($a['uds'],$r['ud'],'Unidad didáctica');
             if($ud['prog']!==$r['prog']||$ud['ciclo']!==$r['ciclo'])throw new PortalError(422,'La unidad didáctica pertenece a otro programa o ciclo.');
             if(!preg_match('/^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/',$r['ini'])||!preg_match('/^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/',$r['fin'])||$r['ini']>=$r['fin'])throw new PortalError(422,'Intervalo de clase no válido.');
@@ -118,10 +121,20 @@ final class PortalDomain
             foreach($o[$collection] as $r)if(!PortalPolicy::find($a[$collection],'id',$r['id']))foreach($refs as $related=>$field)if(PortalPolicy::find($a[$related],$field,$r['id']))throw new PortalError(422,'No se puede eliminar '.$collection.' porque tiene registros relacionados.');
         }
         foreach(['certs'=>'cert','titulos'=>'titulo'] as $collection=>$type)foreach($o[$collection] as $record)if(!PortalPolicy::find($a[$collection],'id',$record['id']))foreach($a['docs'] as $doc)if(($doc['tipo']??'')===$type&&($doc['ref']??null)===($type==='cert'?$record['est']:$record['id'])&&($doc['valido']??true))throw new PortalError(422,'El registro tiene documentos emitidos. Anula el documento antes de retirar su origen.');
+        $codes=[];
         foreach($a['docs'] as &$doc){
-            if(PortalPolicy::find($o['docs'],'cod',$doc['cod']??''))continue;
+            if(!is_array($doc)||!is_string($doc['cod']??null)||isset($codes[$doc['cod']]))throw new PortalError(422,'Código de documento vacío o duplicado.');$codes[$doc['cod']]=true;
+            $issued=PortalPolicy::find($o['docs'],'cod',$doc['cod']);
+            if($issued){
+                if(!PortalPolicy::equal(array_diff_key($issued,['valido'=>1]),array_diff_key($doc,['valido'=>1])))throw new PortalError(422,'Los datos del documento emitido son históricos. Anúlalo y emite uno nuevo.');
+                if(isset($doc['valido'])&&!is_bool($doc['valido']))throw new PortalError(422,'Estado del documento no válido.');
+                if(($issued['valido']??true)===false&&($doc['valido']??true)!==false)throw new PortalError(422,'Un documento anulado no puede reactivarse.');
+                continue;
+            }
             if(!preg_match('/^[A-Z0-9-]{8,64}$/',(string)($doc['cod']??'')))throw new PortalError(422,'Código de documento no válido.');
             if(in_array($doc['tipo']??'',['cert','titulo'],true)){
+                $module=$doc['tipo']==='cert'?'ix-certificados':'ix-titulos';
+                if(in_array(PortalPolicy::role($user),['estudiante','egresado'],true)&&!PortalPolicy::can($user,$module))throw new PortalError(403,'Tu perfil no tiene habilitado ese tipo de documento.');
                 if($doc['tipo']==='cert'){$student=self::foreign($a['estudiantes'],$doc['ref'],'Alumno');if(!array_filter($a['certs'],fn($c)=>$c['est']===$student['id']&&($c['estadoDoc']??'Válido')!=='Anulado'))throw new PortalError(422,'El alumno no tiene certificaciones registradas.');}
                 else{$record=self::foreign($a['titulos'],$doc['ref'],'Documento');$student=self::foreign($a['estudiantes'],$record['est'],'Alumno');if(($record['estadoDoc']??'Válido')==='Anulado')throw new PortalError(422,'El título está anulado.');}
                 if(in_array(PortalPolicy::role($user),['estudiante','egresado'],true)&&$student['id']!==PortalPolicy::binding($user,'est'))throw new PortalError(403,'Documento de otro alumno.');

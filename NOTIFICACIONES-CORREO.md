@@ -78,15 +78,38 @@ fijados de PHPMailer 7.1.0 y su licencia. No copies archivos de `tests/` al host
 
 1. Entra como administrador y revisa el destinatario institucional en Configuración.
 2. En el formulario SMTP y el panel **Notificaciones de trámites**, comprueba el remitente y el estado
-   de configuración SMTP. «Habilitado» confirma que hay configuración; no prueba
+   de configuración SMTP. «Habilitado» confirma que hay configuración; por sí solo no prueba
    que Google acepte las credenciales ni que el cron se esté ejecutando.
-3. Presenta un trámite de prueba con un correo bajo tu control y un adjunto de
+3. Guarda la configuración y pulsa **Enviar correo de prueba** (debajo del formulario SMTP).
+   Envía un mensaje real con la configuración guardada, sin pasar por la cola; si dejas vacío
+   el destinatario se usa el correo de tu cuenta. Funciona aunque el envío aún no esté activado.
+   El resultado indica si la cuenta fue rechazada (usuario o contraseña de aplicación), si no se
+   pudo conectar (servidor, puerto, cifrado o red del hosting) o si se rechazó el destinatario.
+   La prueba queda en la auditoría y se limita a 5 intentos cada 5 minutos.
+4. Presenta un trámite de prueba con un correo bajo tu control y un adjunto de
    prueba. Comprueba el número de expediente y descarga su cargo.
-4. Actualiza el panel y comprueba dos filas, una para cada destinatario. Verifica
+5. Actualiza el panel y comprueba dos filas, una para cada destinatario. Verifica
    ambos buzones, incluida la carpeta de spam.
-5. Si aparece **Error**, revisa credenciales, conexión y destinatario. El botón
+6. Si aparece **Error**, revisa credenciales, conexión y destinatario. El botón
    **Reintentar** vuelve a encolar ese aviso para la siguiente ejecución del cron.
    Si sigue **Pendiente**, comprueba que SMTP esté habilitado y que cron funcione.
+
+### Alertas automáticas del panel
+
+Con el envío activado, el panel muestra la **última ejecución del cron de correo**
+(`mail-worker.php` la registra en cada corrida) y dos alertas:
+
+- **Cron detenido:** hay avisos pendientes que debieron enviarse hace más de 15 minutos.
+  La alerta indica cuántos son y la última ejecución registrada del cron (o que nunca se
+  registró). Revisa la tarea cron de hPanel. Los avisos que agotaron sus 5 intentos no cuentan.
+- **Cuenta SMTP rechazada:** dos o más avisos fallaron porque el servidor rechazó el usuario
+  o la contraseña, y desde el último rechazo no se ha aceptado ningún envío. Suele ocurrir al
+  revocar o cambiar la contraseña de aplicación de Google. Genera una nueva, guárdala y usa
+  **Enviar correo de prueba**; al aceptarse un envío la alerta desaparece. Después pulsa
+  **Reintentar** en los avisos con error.
+
+El detalle de cada aviso con error distingue credenciales rechazadas, fallo de conexión y
+destinatario rechazado; nunca guarda el diálogo SMTP ni la respuesta del servidor.
 
 «Enviado» significa que SMTP aceptó el mensaje, no garantiza recepción en bandeja
 principal. El fallo de uno de los destinatarios no bloquea al otro ni deshace el
@@ -160,6 +183,11 @@ PORTAL_BASE_URL=http://127.0.0.1:8084 node tests/browser-mail-settings.cjs
 `tests/smtp-settings.php` prueba el cifrado, los permisos y la conservación de la contraseña.
 `tests/browser-smtp-form.cjs` prueba el formulario y restaura el archivo privado al terminar;
 requiere `PORTAL_CONFIG_FILE` y `PORTAL_BASE_URL` de pruebas.
+
+`tests/mail-alerts.php` (después de `tests/mail.php`) usa el mismo SMTP local para probar el
+correo de prueba, la clasificación de fallos, la alerta de cron detenido con el registro real de
+`mail-worker.php` y la alerta de cuenta rechazada. `tests/browser-mail-alerts.cjs` prueba el
+formulario de prueba en el panel.
 
 `tests/module-notifications.php` comprueba los eventos y permisos de Reclamos y Bolsa,
 la privacidad, las transacciones y los duplicados.

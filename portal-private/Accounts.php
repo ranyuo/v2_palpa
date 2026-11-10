@@ -58,7 +58,7 @@ trait PortalAccounts
         if($role==='docente'){
             $id=PortalPolicy::binding($profile,'doc');$teacher=PortalPolicy::find($state['academico']['docentes']??[],'id',$id);
             if($teacher&&empty($profile['personaId']))$profile['personaId']=(string)($teacher['per']??'');
-            if($teacher&&!empty($teacher['per'])&&$profile['personaId']!==$teacher['per'])throw new PortalError(422,'La persona de la cuenta debe coincidir con la carga docente vinculada.');
+            if($teacher&&!empty($teacher['per'])&&$profile['personaId']!==(string)$teacher['per'])throw new PortalError(422,'La persona de la cuenta debe coincidir con la carga docente vinculada.');
             if(!$teacher||!PortalPolicy::find($state['personas']??[],'id',$profile['personaId']))throw new PortalError(422,'Vincula la cuenta con el docente y su registro de persona.');
         }
         $data['profile']=$profile;return $data;
@@ -118,6 +118,7 @@ trait PortalAccounts
         $this->rate('accounts',120,60);
         $fields=$input['account']??[];if(!is_array($fields))throw new PortalError(422,'Cuenta no válida.');
         if($action==='student'){
+            if($role!=='admin'&&PortalPolicy::level(json_decode($this->state()['data'],true),$actor,'alumnos')<2)throw new PortalError(403,'Tu perfil no tiene permiso para gestionar cuentas de alumnos.');
             $state=json_decode($this->state()['data'],true);$student=PortalPolicy::find($state['academico']['estudiantes']??[],'id',$input['student_id']??null);
             if(!$student)throw new PortalError(422,'Alumno no encontrado.');
             if($role==='coordinador'&&($student['prog']??null)!==($state['academico']['progMap'][$actor['programaId']]??null))throw new PortalError(403,'Alumno de otro programa.');

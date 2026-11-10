@@ -45,7 +45,41 @@ final class PortalContent
                 else $row+=['denominacion'=>$doc['tipo'],'nivel'=>$doc['nivel']??'Superior tecnológico','pais'=>$doc['pais']??'Perú','region'=>$doc['region']??'Ica'];
             }unset($row);
         }
+        return self::fitLimits($data);
+    }
+
+    /** Recorta los textos cargados que superan el límite del formulario; si no, el registro no se puede volver a guardar. */
+    private static function fitLimits(array $data): array
+    {
+        // Algunas migraciones normalizan antes de cargar las reglas de formularios; sin ellas no hay límites que aplicar.
+        if (!class_exists(PortalPolicy::class)) return $data;
+        foreach (PortalPolicy::defaults()['specs'] as $spec) {
+            $key = $spec['collection'] ?? '';
+            if (!isset($data[$key]) || !is_array($data[$key]) || !array_is_list($data[$key])) continue;
+            foreach ($spec['fields'] as $field) {
+                $max = $field['max'] ?? null;
+                if (!is_int($max) || !in_array($field['type'] ?? 'text', ['text', 'textarea'], true)) continue;
+                foreach ($data[$key] as $i => $row) {
+                    $value = is_array($row) ? ($row[$field['name']] ?? null) : null;
+                    if (!is_string($value) || str_contains($value, '<') || preg_match_all('/./us', $value) <= $max) continue;
+                    if ($key === 'personas' && $field['name'] === 'titulo') $value = preg_replace('/\bMag\./u', 'Mg.', $value);
+                    $value = self::cut($value, $max);
+                    if (!empty($field['unique']) && in_array(strtolower(trim($value)), array_map(fn($other) => strtolower(trim((string)($other[$field['name']] ?? ''))), $data[$key]), true)) continue;
+                    $data[$key][$i][$field['name']] = $value;
+                }
+            }
+        }
         return $data;
+    }
+
+    private static function cut(string $text, int $max): string
+    {
+        $chars = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY);
+        if (count($chars) <= $max) return $text;
+        $short = rtrim(implode('', array_slice($chars, 0, $max - 1)));
+        $word = preg_replace('/\s+\S*$/u', '', $short);
+        if ($word !== '' && preg_match_all('/./us', $word) >= $max * 0.6) $short = $word;
+        return rtrim($short, " ,;:.") . '…';
     }
 
     public static function areaLevel(array $area): string

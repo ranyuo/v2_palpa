@@ -33,6 +33,33 @@ final class PortalRules
         if(!is_array($value))return;if($depth>40)throw new PortalError(422,'El contenido tiene demasiados niveles.');
         foreach($value as $key=>$child){if(in_array($key,['__proto__','prototype','constructor'],true))throw new PortalError(422,'El contenido contiene un campo reservado.');self::structure($child,$depth+1);}
     }
+    /** Reject malformed collection shapes before synchronization or file persistence. */
+    public static function stateShape(array $before,array $after): void
+    {
+        foreach($before as $key=>$value){
+            if(!is_array($value))continue;
+            if(!isset($after[$key])||!is_array($after[$key]))throw new PortalError(422,'Colección no válida: '.$key.'.');
+            if(array_is_list($value)&&!array_is_list($after[$key]))throw new PortalError(422,'La colección '.$key.' debe ser una lista.');
+            if(array_is_list($value)){
+                $ids=[];foreach($after[$key] as $row){
+                    if(!is_array($row))throw new PortalError(422,'Registro no válido en '.$key.'.');
+                    if($key==='estadisticas')continue;
+                    $id=$row['id']??null;
+                    if((!is_string($id)&&!is_int($id))||!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$/D',(string)$id)||isset($ids[(string)$id]))throw new PortalError(422,'Identificador vacío, no válido o duplicado en '.$key.'.');
+                    $ids[(string)$id]=true;
+                }
+            }
+        }
+        foreach($before['academico'] as $key=>$value){
+            if(!is_array($value))continue;
+            $rows=$after['academico'][$key]??null;
+            if(!is_array($rows))throw new PortalError(422,'Colección académica no válida: '.$key.'.');
+            if(in_array($key,['cfg','seq','perms','publicados','progMap'],true))continue;
+            if(!array_is_list($rows))throw new PortalError(422,'El catálogo académico '.$key.' debe ser una lista.');
+            foreach($rows as $row)if(!is_array($row))throw new PortalError(422,'Registro académico no válido en '.$key.'.');
+        }
+    }
+
     private static function alive(array $rows): array{return array_values(array_filter($rows,fn($r)=>!($r['deleted']??false)));}
     private static function changed(array $before,array $row): bool{return !PortalPolicy::equal(PortalPolicy::find($before,'id',$row['id']??null),$row);}
     private static function date(mixed $v): bool

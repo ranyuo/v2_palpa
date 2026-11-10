@@ -716,6 +716,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 .field textarea{min-height:110px;resize:vertical}
 .field input:focus,.field select:focus,.field textarea:focus,.inp:focus{border-color:var(--link);outline:2px solid rgba(var(--blue-rgb),.22)}
 .field .hint{font-size:12px;color:var(--muted);margin-top:4px}
+.field .hint.pz-id-ok{color:var(--ok,#1d7a3a)}.field .hint.pz-id-err{color:var(--err,#b3261e)}.field .hint.pz-id-wait{font-style:italic}
 .field.invalid input,.field.invalid select,.field.invalid textarea,.field.invalid .rte{border-color:var(--err);background:var(--errbg)}
 .field .errmsg{color:var(--err);font-size:12.5px;margin-top:4px}
 .check{display:flex;gap:9px;align-items:flex-start;font-size:14px}
@@ -7228,7 +7229,7 @@ function mpvForm() {
   return `<form class="card cb pz-form" data-mpv novalidate>
    <div class="pz-sec-h"><span>1</span><h2>Datos del remitente</h2></div><div class="form-grid">
     <div class="field full"><div class="pz-seg2" role="radiogroup" aria-label="Tipo de persona"><label><input type="radio" name="tipoPersona" value="Persona natural" checked><span>Persona natural</span></label><label><input type="radio" name="tipoPersona" value="Persona jurídica / entidad"><span>Persona jurídica / entidad</span></label></div></div>
-    <div class="field"><label for="mv-nd">Documento de identidad <span class="req">*</span></label><div class="pz-docpair"><select id="mv-td" name="tipoDoc" aria-label="Tipo de documento"><option>DNI</option><option value="CE">Carné de extranjería</option><option>Pasaporte</option><option>RUC</option></select><input id="mv-nd" name="numDoc" maxlength="12" inputmode="numeric" autocomplete="off" aria-label="Número de documento"></div></div>
+    <div class="field"><label for="mv-nd">Documento de identidad <span class="req">*</span></label><div class="pz-docpair"><select id="mv-td" name="tipoDoc" aria-label="Tipo de documento"><option>DNI</option><option value="CE">Carné de extranjería</option><option>Pasaporte</option><option>RUC</option></select><input id="mv-nd" name="numDoc" maxlength="12" inputmode="numeric" autocomplete="off" aria-label="Número de documento" aria-describedby="mv-nd-h"></div><div class="hint" id="mv-nd-h" data-idhint aria-live="polite">${window.PORTAL_BOOTSTRAP.documentLookup ? 'Con DNI o RUC completaremos tus datos automáticamente.' : ''}</div></div>
     <div class="field" data-nat><label for="mv-no">Nombres <span class="req">*</span></label><input id="mv-no" name="nombresP" maxlength="80" autocomplete="given-name"></div>
     <div class="field" data-nat><label for="mv-ap">Apellidos <span class="req">*</span></label><input id="mv-ap" name="apellidos" maxlength="80" autocomplete="family-name"></div>
     <div class="field full" data-jur hidden><label for="mv-rs">Razón social / nombre de la entidad <span class="req">*</span></label><input id="mv-rs" name="razon" maxlength="150"></div>
@@ -7277,6 +7278,44 @@ R('servicios/mesa-de-partes', (path, q0) => {
   const html = shell(path, { title: 'Mesa de Partes Virtual', desc: `Mesa de Partes Virtual del ${inst().nombre}: registro de documentos, cargo de recepción y seguimiento de expedientes.`, crumbs: [['Servicios', '#/servicios'], ['Mesa de Partes Virtual']], banner: { kicker: 'Servicios en línea', title: 'Mesa de Partes Virtual', text: 'Tus trámites en línea, con cargo de recepción inmediato' }, side, body });
   return { html, after: () => bindMpv(q0) };
 });
+// Autocompleta nombres (DNI) o razón social (RUC) desde el servidor; los campos siguen siendo editables.
+async function identityLookup(tipoDoc, numDoc) {
+  const response = await fetch(portalURL('/api/identidad'), { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': window.PORTAL_BOOTSTRAP.csrf }, body: JSON.stringify({ tipoDoc, numDoc }) });
+  let result = {}; try { result = await response.json(); } catch {}
+  if (!response.ok) throw new Error(result.message || 'No se pudo consultar el documento. Completa los campos manualmente.');
+  return result.record;
+}
+function bindIdentityLookup(f) {
+  if (!window.PORTAL_BOOTSTRAP.documentLookup) return;
+  const hint = $('[data-idhint]', f); let last = '', seq = 0;
+  const idle = 'Con DNI o RUC completaremos tus datos automáticamente.';
+  const say = (text, cls = '') => { hint.textContent = text; hint.className = 'hint' + (cls ? ' ' + cls : ''); };
+  const setPersona = natural => { const r = $$('[name="tipoPersona"]', f).find(x => (x.value === 'Persona natural') === natural); if (r && !r.checked) { r.checked = true; r.dispatchEvent(new Event('change')); } };
+  const run = async () => {
+    const tipo = f.tipoDoc.value, num = f.numDoc.value.trim(), key = tipo + ':' + num;
+    if (!['DNI', 'RUC'].includes(tipo) || validDoc(tipo, num)) { last = ''; seq++; f.numDoc.removeAttribute('aria-busy'); return say(idle); }
+    if (key === last) return; last = key; const mine = ++seq;
+    say('Consultando ' + tipo + '…', 'pz-id-wait'); f.numDoc.setAttribute('aria-busy', 'true');
+    try {
+      const r = await identityLookup(tipo, num); if (mine !== seq) return;
+      if (tipo === 'DNI') {
+        setPersona(true); f.tipoDoc.value = 'DNI';
+        f.nombresP.value = r.nombres || ''; f.apellidos.value = r.apellidos || '';
+        say('Datos encontrados: ' + [r.nombres, r.apellidos].filter(Boolean).join(' ') + '. Revísalos antes de enviar.', 'pz-id-ok');
+      } else {
+        setPersona(false); f.tipoDoc.value = 'RUC';
+        f.razon.value = r.razon || '';
+        if (r.direccion && !f.direccion.value.trim()) f.direccion.value = r.direccion;
+        const extra = [r.estado, r.condicion].filter(Boolean).join(' · ');
+        say('Datos encontrados: ' + (r.razon || '') + (extra ? ' (' + extra + ')' : '') + '. Revísalos antes de enviar.', 'pz-id-ok');
+      }
+    } catch (error) { if (mine === seq) { say(error.message, 'pz-id-err'); last = ''; } }
+    finally { if (mine === seq) f.numDoc.removeAttribute('aria-busy'); }
+  };
+  f.numDoc.addEventListener('input', () => { if (f.tipoDoc.value === 'DNI' || f.tipoDoc.value === 'RUC') f.numDoc.value = f.numDoc.value.replace(/\D/g, ''); run(); });
+  f.tipoDoc.addEventListener('change', run);
+  f.addEventListener('reset', () => setTimeout(() => { last = ''; seq++; say(idle); }, 0));
+}
 function bindMpv(q0) {
   const c = mpvCfg();
   const showTab = k => { $$('.pz-mt [data-tab]').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === k)); $$('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== k); };
@@ -7284,6 +7323,7 @@ function bindMpv(q0) {
   const f = $('[data-mpv]'); let busy=false,pending=null;
   const syncTipo = () => { const jur = f.tipoPersona.value !== 'Persona natural'; $$('[data-nat]', f).forEach(x => x.hidden = jur); $$('[data-jur]', f).forEach(x => x.hidden = !jur); if (jur && f.tipoDoc.value === 'DNI') f.tipoDoc.value = 'RUC'; if (!jur && f.tipoDoc.value === 'RUC') f.tipoDoc.value = 'DNI'; };
   $$('[name="tipoPersona"]', f).forEach(x => x.onchange = syncTipo);
+  bindIdentityLookup(f);
   f.areaDestino.onchange = () => { const a = areaOf(f.areaDestino.value); $('[data-arhint]', f).innerHTML = a ? `Responsable: <b>${esc(a.resp)}</b> · <a href="mailto:${esc(a.correo)}">${esc(a.correo)}</a>` : 'La Mesa de Partes Virtual recibe el documento y lo deriva al área seleccionada.'; };
   $$('[data-count]', f).forEach(t => t.addEventListener('input', () => { t.parentNode.querySelector('[data-c]').textContent = t.value.length; }));
   const listFiles = () => { const fs = [...f.archivos.files]; $('[data-files]', f).innerHTML = fs.map(x => { const e = checkUpload(x, c.formatos, c.maxMB); return `<li class="${e ? 'bad' : ''}">${S16(e ? 'alert' : 'file')} <span>${esc(x.name)}</span> <small>${fsize(x.size)}</small>${e ? `<em>${esc(e)}</em>` : ''}</li>`; }).join(''); };

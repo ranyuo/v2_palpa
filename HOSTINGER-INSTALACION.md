@@ -60,6 +60,20 @@ Completa programas, unidades, módulos, ambientes, periodos, alumnos, responsabl
 
 Los formularios de recepción y seguimiento funcionan en la aplicación. El registro de trámites incluye notificaciones por SMTP, deshabilitadas hasta configurar las credenciales privadas y el cron. Sigue [NOTIFICACIONES-CORREO.md](NOTIFICACIONES-CORREO.md) para habilitar Gmail Workspace y comprobar ambos destinatarios.
 
+### Autocompletado de DNI y RUC en Mesa de Partes
+
+Al escribir un DNI de 8 dígitos, la Mesa de Partes completa nombres y apellidos. Con un RUC de 11 dígitos completa la razón social, la dirección, el estado y la condición. El proveedor por defecto es [MIGO API v2](https://docs.migo.pe/v2). El navegador consulta a la intranet (`/api/identidad`) y la intranet consulta al proveedor, así que el token nunca llega al navegador. Los campos siguen siendo editables, y si la API no responde, el ciudadano los completa a mano.
+
+1. Crea o copia el token en <https://api.migo.pe/tokens>.
+2. Inicia sesión como administrador y abre **Configuración → Consulta de DNI y RUC (API)**.
+3. Elige el proveedor (MIGO API v2 o Decolecta). La URL base se completa sola; cámbiala solo si el proveedor indica otra (siempre `https://`).
+4. Pega el token, marca **Activar autocompletado por DNI y RUC**, ajusta los límites y pulsa **Guardar configuración de la API**.
+5. Usa **Probar la API** con un RUC o DNI para confirmar el token. La prueba funciona aunque el autocompletado esté desactivado.
+
+El token se guarda cifrado en `portal-private/.document-lookup.json` con la `install_key`, y el formulario solo muestra sus cuatro últimos caracteres. Para cambiarlo, pega uno nuevo; para quitarlo, marca **Borrar el token guardado**. Conserva este archivo y la `install_key` en los respaldos, igual que `.smtp-settings.json`. Como alternativa, se puede poner un bloque `'document_lookup'` en `config.php` (ver `config.example.php`), pero lo guardado desde el formulario tiene prioridad. PHP necesita la extensión cURL.
+
+Los límites por visitante (IP) evitan que alguien use el formulario para recorrer el padrón. Por defecto son 8 consultas por minuto y 40 por hora, y se cambian en el mismo formulario. Cada consulta consume créditos del plan del proveedor.
+
 Si se necesitan adjuntos grandes, ajusta los límites PHP de subida y de POST según el tamaño admitido por la aplicación y el plan, y verifica una carga real antes de habilitar el servicio institucional.
 
 Después de comprobar el acceso, retira `install.php`, `actualizar.php` y `recuperar.php` del sitio cuando no sean necesarios.

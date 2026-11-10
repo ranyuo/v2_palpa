@@ -8,6 +8,7 @@
 /portal-private/.smtp-settings.json
 /portal-private/.smtp-settings.json.lock
 /portal-private/.smtp-*
+/portal-private/.document-lookup*
 /tests/.results/
 
 # Evidencias y paquetes generados: conservar fuera del código fuente.

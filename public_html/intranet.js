@@ -51,7 +51,7 @@ CUSTOM.config=()=>{const out=singletonForm({title:'Configuración de la intranet
  get:()=>({nombre:inst().nombre,nombreCorto:inst().nombreCorto,telefono:inst().telefono,correo:inst().correo,direccion:inst().direccion,horario:inst().horario,correoMesaPartes:DB.config.mpv.correo,correoReclamos:DB.config.correoReclamos||'',correoBolsa:DB.config.bolsa?.correo||''}),
  fields:[{n:'nombre',l:'Nombre de la institución',req:true,full:true},{n:'nombreCorto',l:'Nombre corto',req:true},{n:'telefono',l:'Teléfono'},{n:'correo',l:'Correo de contacto',t:'email',req:true},{n:'direccion',l:'Dirección',full:true},{n:'horario',l:'Horario de atención',full:true},{n:'correoMesaPartes',l:'Correo receptor de Mesa de Partes',t:'email',req:true,max:254,hint:'Destino de los avisos de nuevos trámites. Es el mismo correo de la configuración de Mesa de Partes.'},{n:'correoReclamos',l:'Correo responsable de reclamos',t:'email'},{n:'correoBolsa',l:'Correo responsable de Bolsa Laboral',t:'email'}],
  onSave:(w,er)=>{if(Object.keys(er).length)return;for(const key of ['nombre','nombreCorto','telefono','correo','direccion','horario'])DB.config.inst[key]=w[key];DB.config.mpv.correo=w.correoMesaPartes.trim();DB.config.correoReclamos=w.correoReclamos;DB.config.lr=DB.config.lr||{};DB.config.lr.correo=w.correoReclamos;DB.config.bolsa.correo=w.correoBolsa.trim();}
-});out.html+=intranetSmtpHTML()+'<section class="panel"><h2>Notificaciones por correo</h2><div class="pb" data-mail-panel>Cargando estado del correo…</div></section>';const after=out.after;out.after=()=>{after();intranetSmtpBind();intranetSmtpTestBind();intranetMailPanel();};return out;};
+});out.html+=intranetSmtpHTML()+intranetDocLookupHTML()+'<section class="panel"><h2>Notificaciones por correo</h2><div class="pb" data-mail-panel>Cargando estado del correo…</div></section>';const after=out.after;out.after=()=>{after();intranetSmtpBind();intranetSmtpTestBind();intranetDocLookupBind();intranetMailPanel();};return out;};
 
 function intranetSmtpHTML(){return `<section class="panel" style="margin-top:20px"><h2>Configurar correo notificador (SMTP)</h2><form class="pb" data-smtp-form autocomplete="off"><p>Configura la cuenta central que enviará los avisos de Mesa de Partes, Libro de Reclamaciones y Bolsa Laboral.</p><div class="form-grid">
  <div class="field full"><label class="check"><input name="enabled" type="checkbox"> Activar envío de notificaciones por correo</label></div>
@@ -90,6 +90,45 @@ function intranetSmtpTestBind(){
    toast(result.ok?'Correo de prueba enviado.':'La prueba de correo falló.',result.ok?'ok':'err');intranetMailPanel();
   }catch(error){message.className='notice';message.textContent=error.message;}
   finally{send.disabled=false;send.removeAttribute('aria-busy');}
+ };
+}
+
+// API de consulta de DNI/RUC para autocompletar la Mesa de Partes; el token se guarda cifrado y nunca vuelve al navegador.
+function intranetDocLookupHTML(){return `<section class="panel" style="margin-top:20px"><h2>Consulta de DNI y RUC (API)</h2><form class="pb" data-idapi-form autocomplete="off"><p>Al escribir un DNI o RUC en la Mesa de Partes se completan los nombres o la razón social con la API configurada aquí.</p><div class="form-grid">
+ <div class="field full"><label class="check"><input name="enabled" type="checkbox"> Activar autocompletado por DNI y RUC</label></div>
+ <div class="field"><label for="idapi-provider">Proveedor</label><select id="idapi-provider" name="provider"></select><small data-idapi-docs></small></div>
+ <div class="field"><label for="idapi-url">URL base de la API</label><input id="idapi-url" name="base_url" type="url" required maxlength="200" placeholder="https://api.migo.pe/api/v2"><small>Debe empezar con https://. Déjala como está salvo que el proveedor indique otra.</small></div>
+ <div class="field full"><label for="idapi-token">Token de la API</label><input id="idapi-token" name="token" type="password" maxlength="512" autocomplete="new-password" spellcheck="false" placeholder="Pega aquí el token del proveedor"><small data-idapi-token-info>El token guardado no se muestra.</small><label class="check" data-idapi-clear hidden><input name="clear_token" type="checkbox"> Borrar el token guardado</label></div>
+ <div class="field"><label for="idapi-min">Consultas por minuto por visitante</label><input id="idapi-min" name="per_minute" type="number" min="1" max="120" required></div>
+ <div class="field"><label for="idapi-hour">Consultas por hora por visitante</label><input id="idapi-hour" name="per_hour" type="number" min="1" max="2000" required><small>Evitan que se use el formulario para recorrer el padrón. Cada consulta consume créditos del plan.</small></div>
+ </div><p data-idapi-message role="status" aria-live="polite"></p><button type="submit" class="btn">Guardar configuración de la API</button></form>
+ <form class="pb" data-idapi-test-form autocomplete="off" style="border-top:1px solid var(--line,#e5e7eb)"><h3 style="margin:0 0 6px">Probar la API</h3><p>Consulta un documento con la configuración <b>guardada</b>, aunque el autocompletado esté desactivado.</p>
+ <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><label class="field" style="min-width:130px">Tipo<select name="tipoDoc"><option>RUC</option><option>DNI</option></select></label><label class="field" style="flex:1;min-width:180px">Número<input name="numDoc" required inputmode="numeric" maxlength="11" value="20131312955"></label><button type="submit" class="btn sec">Probar consulta</button></div>
+ <p data-idapi-test-message role="status" aria-live="polite"></p></form></section>`;}
+function intranetDocLookupBind(){
+ const form=document.querySelector('[data-idapi-form]');if(!form)return;
+ const message=form.querySelector('[data-idapi-message]'),save=form.querySelector('[type=submit]'),provider=form.elements.provider,docs=form.querySelector('[data-idapi-docs]');let providers={};
+ const showDocs=()=>{const p=providers[provider.value];docs.innerHTML=p?`Documentación: <a href="${esc(p.docs)}" target="_blank" rel="noopener">${esc(p.docs)}</a>`:'';};
+ const fill=info=>{providers=info.providers||{};provider.innerHTML=Object.entries(providers).map(([k,p])=>`<option value="${esc(k)}">${esc(p.label)}</option>`).join('');
+  provider.value=info.provider;form.elements.base_url.value=info.base_url;form.elements.enabled.checked=info.enabled;form.elements.per_minute.value=info.per_minute;form.elements.per_hour.value=info.per_hour;form.elements.token.value='';form.elements.clear_token.checked=false;
+  form.querySelector('[data-idapi-clear]').hidden=!info.has_token;form.querySelector('[data-idapi-token-info]').textContent=info.has_token?`Token guardado de forma protegida (${info.token_hint}). Deja el campo vacío para conservarlo.`:'Todavía no hay token guardado.';showDocs();};
+ try{fill(portalRequest('GET','/api/identidad/config'));}catch(error){message.textContent=error.message;save.disabled=true;}
+ provider.onchange=()=>{const p=providers[provider.value];if(p)form.elements.base_url.value=p.base_url;showDocs();message.textContent='Proveedor cambiado: introduce el token de este proveedor y guarda.';};
+ form.onsubmit=event=>{event.preventDefault();if(!form.reportValidity())return;save.disabled=true;message.className='';message.textContent='Guardando…';
+  try{const e=form.elements;const result=portalRequest('PUT','/api/identidad/config',{enabled:e.enabled.checked,provider:e.provider.value,base_url:e.base_url.value.trim(),token:e.token.value.trim(),clear_token:e.clear_token.checked,per_minute:Number(e.per_minute.value),per_hour:Number(e.per_hour.value)});
+   fill(result);window.PORTAL_BOOTSTRAP.documentLookup=result.enabled&&result.has_token;message.className='ok';message.textContent='Configuración guardada. '+(result.enabled?'Autocompletado activado.':'Autocompletado desactivado.');toast('Configuración de la API guardada.','ok');}
+  catch(error){message.className='notice';message.textContent=error.message;}finally{save.disabled=false;}
+ };
+ const test=document.querySelector('[data-idapi-test-form]'),out=test.querySelector('[data-idapi-test-message]'),run=test.querySelector('[type=submit]');
+ test.elements.tipoDoc.onchange=()=>{test.elements.numDoc.maxLength=test.elements.tipoDoc.value==='DNI'?8:11;};
+ test.onsubmit=async event=>{event.preventDefault();if(run.disabled||!test.reportValidity())return;run.disabled=true;run.setAttribute('aria-busy','true');out.className='';out.textContent='Consultando…';
+  try{const response=await fetch(portalURL('/api/identidad/prueba'),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':portalBootstrap.csrf},body:JSON.stringify({tipoDoc:test.elements.tipoDoc.value,numDoc:test.elements.numDoc.value.trim()})});
+   let result={};try{result=await response.json();}catch{}
+   if(!response.ok)throw new Error(result.message||'No se pudo conectar con el servidor.');
+   const r=result.record||{};out.className=result.ok?'ok':'notice';
+   out.textContent=result.ok?'✓ '+result.message+' '+(r.razon||[r.nombres,r.apellidos].filter(Boolean).join(' '))+(r.estado?` (${[r.estado,r.condicion].filter(Boolean).join(' · ')})`:''):'✗ '+result.message;
+  }catch(error){out.className='notice';out.textContent=error.message;}
+  finally{run.disabled=false;run.removeAttribute('aria-busy');}
  };
 }
 

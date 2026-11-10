@@ -37,7 +37,7 @@ for name in filter(None, tracked):
     if any(part in {'backups', '.backups', '.results', '.git'} for part in path.parts):
         raise SystemExit(f'Ruta privada inesperada: {name}')
     files.append(name)
-required = {'NOTIFICACIONES-CORREO.md', 'portal-private/Mail.php', 'portal-private/SmtpSettings.php', 'portal-private/Numbering.php', 'portal-private/Notifications.php', 'portal-private/mail-worker.php',
+required = {'NOTIFICACIONES-CORREO.md', 'portal-private/Mail.php', 'portal-private/SmtpSettings.php', 'portal-private/DocumentLookup.php', 'portal-private/Numbering.php', 'portal-private/Notifications.php', 'portal-private/mail-worker.php',
             'portal-private/vendor/phpmailer/src/PHPMailer.php', 'portal-private/vendor/phpmailer/src/SMTP.php',
             'portal-private/vendor/phpmailer/src/Exception.php', 'portal-private/vendor/phpmailer/LICENSE',
             'public_html/standalone-services.js', 'public_html/mesa-de-partes.php', 'public_html/libro-de-reclamaciones.php', 'public_html/bolsa-laboral.php', 'public_html/certificados.php', 'public_html/academic-documents.js', 'portal-private/AcademicDocuments.php', 'public_html/index.php', 'public_html/intranet.js', 'public_html/intranet.css',
@@ -52,7 +52,7 @@ with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as arch
     for name in sorted(files):
         archive.write(root / name, name)
         manifest.append(hashlib.sha256((root / name).read_bytes()).hexdigest() + '  ' + name)
-    archive.writestr('VERSION.txt', 'Intranet Palpa\nRepositorio: https://github.com/ranyuo/v2_palpa\nCommit: ' + commit + '\nPaquete para instalación nueva.\n')
+    archive.writestr('VERSION.txt', 'Intranet Palpa\nRepositorio: https://github.com/ranyuo/palpa\nCommit: ' + commit + '\nPaquete para instalación nueva.\n')
     archive.writestr('SHA256SUMS.txt', '\n'.join(manifest) + '\n')
 with zipfile.ZipFile(output) as archive:
     if archive.testzip() is not None:

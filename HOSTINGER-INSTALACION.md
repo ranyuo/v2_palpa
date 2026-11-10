@@ -60,6 +60,26 @@ Completa programas, unidades, módulos, ambientes, periodos, alumnos, responsabl
 
 Los formularios de recepción y seguimiento funcionan en la aplicación. El registro de trámites incluye notificaciones por SMTP, deshabilitadas hasta configurar las credenciales privadas y el cron. Sigue [NOTIFICACIONES-CORREO.md](NOTIFICACIONES-CORREO.md) para habilitar Gmail Workspace y comprobar ambos destinatarios.
 
+### Autocompletado de DNI y RUC en Mesa de Partes
+
+Al escribir un DNI de 8 dígitos, la Mesa de Partes completa nombres y apellidos. Con un RUC de 11 dígitos completa la razón social, la dirección, el estado y la condición. Las consultas usan [MIGO API v2](https://docs.migo.pe/v2). El navegador consulta a la intranet (`/api/identidad`) y la intranet consulta a MIGO, así que el token nunca llega al navegador. Los campos siguen siendo editables, y si la API no responde, el ciudadano los completa a mano.
+
+1. Crea o copia el token en <https://api.migo.pe/tokens>.
+2. En `portal-private/config.php` del hosting (no en el repositorio), añade:
+
+   ```php
+   'document_lookup' => [
+       'enabled' => true,
+       'provider' => 'migo',
+       'base_url' => 'https://api.migo.pe/api/v2',
+       'token' => 'TU_TOKEN_DE_MIGO',
+   ],
+   ```
+
+3. Comprueba que PHP tenga la extensión cURL y abre la Mesa de Partes para probar un DNI.
+
+Cada IP puede hacer como máximo 8 consultas por minuto y 40 por hora, para que nadie use el formulario para recorrer el padrón. Cada consulta consume créditos del plan de MIGO. Si cambias el token, solo actualiza `config.php`.
+
 Si se necesitan adjuntos grandes, ajusta los límites PHP de subida y de POST según el tamaño admitido por la aplicación y el plan, y verifica una carga real antes de habilitar el servicio institucional.
 
 Después de comprobar el acceso, retira `install.php`, `actualizar.php` y `recuperar.php` del sitio cuando no sean necesarios.

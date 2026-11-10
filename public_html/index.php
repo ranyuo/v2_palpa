@@ -47,6 +47,7 @@ try {
             $status = $result['status']; unset($result['status']);
             portal_json($result, $status);
         }
+        if ($route === 'api/identidad' && $method === 'POST') portal_json($app->identity($input));
         if (preg_match('#^api/consultas/([a-z]+)$#', $route, $match) && $method === 'POST') portal_json($app->lookup($match[1], $input));
         throw new PortalError(404, 'Ruta no encontrada.');
     }

@@ -27,6 +27,7 @@ require_once __DIR__.'/Numbering.php';
 require_once __DIR__.'/Mail.php';
 require_once __DIR__.'/Notifications.php';
 require_once __DIR__.'/SmtpSettings.php';
+require_once __DIR__.'/DocumentLookup.php';
 
 final class PortalApp
 {
@@ -191,7 +192,7 @@ final class PortalApp
         $data=IntranetScope::project(PortalPolicy::project($full,$user,$this->publicData($full)));
         $data['usuarios']=$this->visibleAccounts($user,$full);
         if($user&&$user['rol']==='admin'){$data['auditoria']=[...PortalAudit::rows($this),...PortalAudit::legacy($this,$full)];$data['academico']['bitacora']=array_map(fn($r)=>['id'=>$r['id'],'f'=>$r['fecha'],'u'=>$r['usuario'],'a'=>$r['accion'],'m'=>$r['entidad'],'d'=>$r['registro'].' · '.$r['detalle']],PortalAudit::rows($this));}
-        return ['data'=>$data,'revision'=>(int)$state['revision'],'user'=>$user,'csrf'=>$_SESSION['csrf'],'numberingYear'=>(int)date('Y'),'schema_version'=>PortalSchema::VERSION,'roles'=>PortalPolicy::definitions()['roles'],'scope'=>['mode'=>'intranet','website'=>'https://www.istpalpa.edu.pe/','modules'=>IntranetScope::MODULES]];
+        return ['data'=>$data,'revision'=>(int)$state['revision'],'user'=>$user,'csrf'=>$_SESSION['csrf'],'numberingYear'=>(int)date('Y'),'schema_version'=>PortalSchema::VERSION,'roles'=>PortalPolicy::definitions()['roles'],'documentLookup'=>$this->documentLookup()->enabled(),'scope'=>['mode'=>'intranet','website'=>'https://www.istpalpa.edu.pe/','modules'=>IntranetScope::MODULES]];
     }
     public function input(): array
     {
@@ -570,6 +571,20 @@ final class PortalApp
             portal_defer(fn()=>$this->processMail(3,$mailId));
         }
         return $result;
+    }
+
+    private function documentLookup(): PortalDocumentLookup
+    {return new PortalDocumentLookup(is_array($this->config['document_lookup']??null)?$this->config['document_lookup']:[]);}
+
+    /** Autocompleta nombres (DNI) o razón social (RUC) en los formularios públicos. */
+    public function identity(array $input): array
+    {
+        $input=self::validate($input,['tipoDoc'=>'required|string|max:10','numDoc'=>'required|string|max:12']);
+        $service=$this->documentLookup();
+        if(!$service->enabled())throw new PortalError(503,'La consulta automática de documentos no está habilitada.');
+        // Límite por IP: evita usar el formulario para recorrer el padrón.
+        $this->rate('identity',8,60);$this->rate('identity-hour',40,3600);
+        return ['record'=>$service->find($input['tipoDoc'],$input['numDoc'])];
     }
 
     public function lookup(string $type, array $input): array

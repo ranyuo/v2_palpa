@@ -6,6 +6,8 @@ Actualización del 23 de noviembre de 2026 · v2_palpa f1930f8c4df2 · esquema 8
 
 Este suplemento actualiza la edición base del 10 de noviembre de 2026 en las funciones indicadas. La referencia es el código en GitHub y las pruebas de la versión. La configuración y el despliegue en producción quedan por verificar.
 
+**Manual simplificado de los cambios** (2 páginas) · [PDF](Manual-simplificado-cambios-Palpa.pdf) · [Word](Manual-simplificado-cambios-Palpa.docx)
+
 | Documento | PDF completo | Inicio del suplemento | Word editable |
 |---|---:|---:|---|
 | Manual del sistema PALPA | [49 páginas](Manual_del_sistema_PALPA.pdf) | Página 48 | [Word](Manual_del_sistema_PALPA.docx) |

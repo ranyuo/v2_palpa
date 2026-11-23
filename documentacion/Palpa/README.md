@@ -1,16 +1,14 @@
-# Documentación de Palpa
+# Manuales actualizados de Palpa
 
-Dirección utilizada: https://palpa.aplicacion.io/
+Actualización del 23 de noviembre de 2026 · v2_palpa ce5e82170c0b · esquema 8
 
-[Descargar todos los documentos en ZIP](https://github.com/ranyuo/v2_palpa/raw/refs/heads/main/documentacion/Palpa/Manuales_Palpa_Word_y_PDF.zip)
+[Descargar el paquete en Word y PDF](https://github.com/ranyuo/v2_palpa/raw/refs/heads/main/documentacion/Palpa/Manuales_Palpa_Word_y_PDF.zip)
 
-| Documento | Páginas | Word | PDF |
-|---|---:|---|---|
-| Manual del sistema | 47 | [Word](Manual_del_sistema_PALPA.docx) | [PDF](Manual_del_sistema_PALPA.pdf) |
-| Cuaderno de talleres | 62 | [Word](Cuaderno_de_talleres_PALPA.docx) | [PDF](Cuaderno_de_talleres_PALPA.pdf) |
-| Manual técnico | 44 | [Word](Manual_tecnico_PALPA.docx) | [PDF](Manual_tecnico_PALPA.pdf) |
-| Diagramas y diccionario de tablas | 6 | [Word](Diagrama_base_de_datos_PALPA.docx) | [PDF](Diagrama_base_de_datos_PALPA.pdf) |
+Este suplemento actualiza la edición base del 10 de noviembre de 2026 en las funciones indicadas. La referencia es el código en GitHub y las pruebas de la versión. La configuración y el despliegue en producción quedan por verificar.
 
-Edición del 10 de noviembre de 2026. Documentación elaborada a partir del código de v2_palpa, revisión 26c8a2d2a9e86d70d8640d7616aee56983e689e9, y una instalación local de pruebas. No se verificó la configuración del sitio publicado. Modelo SQL contrastado localmente: 9 tablas y 60 campos.
-
-El ZIP contiene los ocho documentos anteriores. SHA256SUMS permite comprobar la integridad de cada archivo.
+| Documento | PDF completo | Inicio del suplemento | Word editable |
+|---|---:|---:|---|
+| Manual del sistema PALPA | [49 páginas](Manual_del_sistema_PALPA.pdf) | Página 48 | [Word](Manual_del_sistema_PALPA.docx) |
+| Manual tecnico PALPA | [46 páginas](Manual_tecnico_PALPA.pdf) | Página 45 | [Word](Manual_tecnico_PALPA.docx) |
+| Cuaderno de talleres PALPA | [63 páginas](Cuaderno_de_talleres_PALPA.pdf) | Página 63 | [Word](Cuaderno_de_talleres_PALPA.docx) |
+| Diagrama base de datos PALPA | [7 páginas](Diagrama_base_de_datos_PALPA.pdf) | Página 7 | [Word](Diagrama_base_de_datos_PALPA.docx) |

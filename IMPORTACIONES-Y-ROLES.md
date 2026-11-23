@@ -4,7 +4,7 @@
 
 Copia `public_html/` y `portal-private/` del paquete sobre los archivos de la intranet y conserva la configuración local, las credenciales y la base de datos. Prepara una copia previa de archivos y MySQL. Abre `/actualizar.php` y ejecuta la actualización con la clave de instalación. Este paso usa `PortalSchema::apply()` para conservar los datos y cuentas existentes y registrar la versión de esquema 8. El procedimiento añade a `intranet_state` cuatro catálogos vacíos cuando aún no existen. Los roles se guardan en `intranet_settings` y la auditoría en `intranet_audit`. La actualización no requiere ejecutar un SQL adicional a mano.
 
-El lector de Excel requiere PHP 8.1 o posterior, Phar con soporte ZIP, SimpleXML y zlib. Habilita `file_uploads` y configura `upload_max_filesize` y `post_max_size` con margen para recibir archivos de 2 MB. Verifica que PHP pueda escribir en su directorio temporal.
+El botón de descarga sirve los archivos de `portal-private/plantillas/`. Incluye esa carpeta al copiar la actualización. El lector de Excel requiere PHP 8.1 o posterior, Phar con soporte ZIP, SimpleXML y zlib. Habilita `file_uploads` y configura `upload_max_filesize` y `post_max_size` con margen para recibir archivos de 2 MB. Verifica que PHP pueda escribir en su directorio temporal.
 
 ## Operar la carga
 

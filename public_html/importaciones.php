@@ -20,9 +20,14 @@ try {
     if (!is_string($module) || !isset($modules[$module])) throw new PortalError(403, 'No tienes acceso a ese módulo.');
     $action = $_POST['action'] ?? $_GET['action'] ?? '';
     if ($action === 'plantilla' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
-        $template = ImportWorkbook::template(ImportCatalog::columns($module));
+        $filename = 'palpa-'.$module.'.xlsx';
+        $path = dirname(__DIR__).'/portal-private/plantillas/'.$filename;
+        $template = is_readable($path) ? file_get_contents($path) : false;
+        if ($template === false || !str_starts_with($template, "PK\x03\x04")) {
+            throw new PortalError(503, 'La plantilla no está disponible. Comunícate con el administrador de la intranet.');
+        }
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment; filename="palpa-'.$module.'.xlsx"');
+        header('Content-Disposition: attachment; filename="'.$filename.'"');
         echo $template;
         exit;
     }

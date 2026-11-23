@@ -23,15 +23,76 @@ final class PortalPolicy
         'cfg'=>'config','perms'=>'usuarios','docs'=>'certificados'];
     private static array $roleOverrides = [];
     public static function configureRoles(array $roles): void { self::$roleOverrides=$roles; }
+    public const CUSTOM_BASES = ['secretaria','directivo','coordinador','atencion','area'];
+
+    public static function roleModules(string $base): array
+    {
+        if ($base === 'area') return ['dashboard','expedientes','reclamos'];
+        return IntranetScope::roles(self::defaults()['roles'])[$base]['mods'] ?? [];
+    }
+
     public static function validateRoles(array $roles): void
     {
-        $base=self::defaults()['roles'];
-        foreach($roles as $key=>$role){
-            if($key==='admin'||!isset($base[$key])||!is_array($role)||array_diff(array_keys($role),['label','mods'])||!is_string($role['label']??null)||trim($role['label'])===''||strlen($role['label'])>100||!preg_match('/^[\p{L}\p{N} ._,()\/-]+$/u',$role['label'])||!is_array($role['mods']??null)||!array_is_list($role['mods']))throw new PortalError(422,'Configuración de roles no válida.');
-            foreach($role['mods'] as $mod)if(!is_string($mod)||!in_array($mod,IntranetScope::MODULES,true)||!in_array($mod,$base[$key]['mods'],true))throw new PortalError(422,'Permiso fuera del ámbito del rol.');
-            if(!in_array('dashboard',$role['mods'],true))throw new PortalError(422,'El inicio del panel debe permanecer habilitado.');
+        foreach ($roles as $key => $role) {
+            $builtIn = isset(self::defaults()['roles'][$key]);
+            $base = $builtIn ? $key : ($role['base'] ?? '');
+            if ($key === 'admin' || !is_array($role) ||
+                (!$builtIn && (!preg_match('/^rol-[a-z0-9-]{2,26}$/D', (string)$key) || !in_array($base, self::CUSTOM_BASES, true))) ||
+                array_diff(array_keys($role), $builtIn ? ['label','mods','imports'] : ['label','mods','base','write','imports']) ||
+                !is_string($role['label'] ?? null) || trim($role['label']) === '' || strlen($role['label']) > 100 ||
+                !preg_match('/^[\p{L}\p{N} ._,()\/-]+$/u', $role['label']) ||
+                !is_array($role['mods'] ?? null) || !array_is_list($role['mods']) ||
+                !in_array('dashboard', $role['mods'], true)) {
+                throw new PortalError(422, 'Configuración de roles no válida.');
+            }
+            foreach ($role['mods'] as $module) {
+                if (!is_string($module) || !in_array($module, self::roleModules($base), true)) {
+                    throw new PortalError(422, 'Módulo fuera del ámbito del perfil base.');
+                }
+            }
+            $write = $role['write'] ?? [];
+            if (!is_array($write) || !array_is_list($write)) throw new PortalError(422, 'Permisos de gestión no válidos.');
+            foreach ($write as $module) {
+                if (!is_string($module) || !in_array($module, $role['mods'], true)) throw new PortalError(422, 'Habilita el módulo antes de conceder gestión.');
+            }
+            $imports = $role['imports'] ?? [];
+            if (!is_array($imports) || ($imports && !in_array($base, ['secretaria','directivo','coordinador','atencion'], true))) {
+                throw new PortalError(422, 'Este perfil no admite importaciones.');
+            }
+            foreach ($imports as $module => $permission) {
+                if (!isset(ImportCatalog::MODULES[$module]) || !in_array($permission,[1,2],true) ||
+                    ($permission === 2 && !in_array($module,ImportCatalog::MUTABLE,true)) ||
+                    ($base === 'coordinador' && !in_array($module,ImportCatalog::PROGRAM_SCOPED,true))) {
+                    throw new PortalError(422, 'Permiso de importación fuera del ámbito del rol.');
+                }
+            }
         }
     }
+
+    public static function scope(array $user): string
+    {
+        return match (self::$roleOverrides[$user['rol'] ?? '']['base'] ?? ($user['rol'] ?? '')) {
+            'coordinador' => 'programa',
+            'area' => 'area',
+            default => 'institucion',
+        };
+    }
+
+    public static function importPermissions(array $user): array
+    {
+        if (self::role($user) === 'admin') {
+            return array_map(fn($module) => in_array($module, ImportCatalog::MUTABLE, true) ? 2 : 1,
+                array_combine(array_keys(ImportCatalog::MODULES), array_keys(ImportCatalog::MODULES)));
+        }
+        return self::$roleOverrides[$user['rol'] ?? '']['imports'] ?? [];
+    }
+
+    private static function canWrite(array $user, string $module): bool
+    {
+        $role = self::$roleOverrides[$user['rol'] ?? ''] ?? [];
+        return !isset($role['base']) || in_array($module, $role['write'], true);
+    }
+
     public static function defaults(): array
     {
         static $base;return $base ??= json_decode(file_get_contents(__DIR__.'/contracts/original.json'),true,flags:JSON_THROW_ON_ERROR);
@@ -39,7 +100,15 @@ final class PortalPolicy
     public static function definitions(): array
     {
         $base=self::defaults();
-        foreach(self::$roleOverrides as $key=>$role)if($key!=='admin'&&isset($base['roles'][$key]))$base['roles'][$key]=array_replace($base['roles'][$key],$role);
+        foreach (self::$roleOverrides as $key => $role) {
+            if ($key === 'admin') continue;
+            if (isset($role['base'])) {
+                $parent = $role['base'] === 'area' ? 'atencion' : $role['base'];
+                $base['roles'][$key] = array_replace($base['roles'][$parent], $role);
+            } elseif (isset($base['roles'][$key])) {
+                $base['roles'][$key] = array_replace($base['roles'][$key], $role);
+            }
+        }
         $base['roles']=IntranetScope::roles($base['roles']);
         foreach($base['specs'] as &$spec)if($spec['collection']==='programas')foreach($spec['fields'] as &$field)if(in_array($field['name'],['resumen','perfil','campoItems','imagen','horario','turno'],true)){$field['required']=false;$field['publishRequired']=false;}
         foreach($base['specs'] as &$spec)if($spec['collection']==='certificados')foreach($spec['fields'] as &$field)if($field['name']==='programaId'){$field['required']=false;$field['publishRequired']=false;}
@@ -54,10 +123,15 @@ final class PortalPolicy
         return ['slides'=>'portada','enlaces'=>'enlaces','categoriasNoticia'=>'noticias','tiposDocumento'=>'documentos','tupaDocs'=>'tupa','tiposBeca'=>'becas','becasPeriodos'=>'becas','becarios'=>'becas','personas'=>'docentes'][$key]??$key;
     }
 
-    public static function role(array $user): string { return $user['rol'] ?? 'publico'; }
+    public static function role(array $user): string
+    {
+        $key = $user['rol'] ?? 'publico';
+        $base = self::$roleOverrides[$key]['base'] ?? $key;
+        return $base === 'area' ? 'atencion' : $base;
+    }
     public static function can(array $user, string $module): bool
     {
-        return in_array($module,IntranetScope::MODULES,true) && (self::role($user)==='admin' || in_array($module,self::definitions()['roles'][self::role($user)]['mods']??[],true));
+        return in_array($module,IntranetScope::MODULES,true) && (self::role($user)==='admin' || in_array($module,self::definitions()['roles'][$user['rol'] ?? 'publico']['mods']??[],true));
     }
     public static function level(array $data, array $user, string $module): int
     {
@@ -66,7 +140,7 @@ final class PortalPolicy
         $portalModule=['alumnos'=>'ix-alumnos','horarios'=>'ix-horarios','certificados'=>'ix-certificados','titulos'=>'ix-titulos','bolsa'=>'ix-bolsa','config'=>'ix-config','usuarios'=>'usuarios','docentes'=>'cvdocente'][$module]??'';
         if ($module==='docentes' && self::role($user)==='docente') return self::can($user,'cvdocente')?2:0;
         if (!$portalModule || !self::can($user,$portalModule)) return 0;
-        return min(2,max(0,(int)($data['academico']['perms'][$role][$module]??0)));
+        return min(self::canWrite($user, $portalModule) ? 2 : 1,max(0,(int)($data['academico']['perms'][$role][$module]??0)));
     }
     public static function binding(array $user, string $type): ?int
     {
@@ -80,6 +154,9 @@ final class PortalPolicy
     private static function topScope(string $key,array $row,array $user): bool
     {
         $role=self::role($user);
+        if (self::scope($user) === 'area' && in_array($key, ['expedientes','reclamos'], true)) {
+            return !empty($user['area']) && ($row['area'] ?? $row['areaDestino'] ?? '') === $user['area'];
+        }
         if($role==='coordinador' && in_array($key,['programas','egresados'],true)) return (string)($key==='programas'?($row['id']??''):($row['programaId']??''))===(string)($user['programaId']??'');
         if($role==='docente' && $key==='personas') return (string)($row['id']??'')===(string)($user['personaId']??'');
         return true;
@@ -168,16 +245,23 @@ final class PortalPolicy
         if($role==='docente')$p['perfilesDoc']=array_values(array_filter($a['perfilesDoc']??[],fn($r)=>self::academicScope('perfilesDoc',$r,$full,$user)));
         $p['publicados']=$a['publicados']??[];
         $ar=self::ACADEMIC_ROLES[$role]??'';
-        $p['notifs']=array_values(array_filter($a['notifs']??[],fn($n)=>in_array($n['to']??'',['u:'.($user['ixId']??''),'r:'.$ar],true)));
+        $recipients = ['u:'.($user['ixId']??'')];
+        if (!isset(self::$roleOverrides[$user['rol']]['base'])) $recipients[] = 'r:'.$ar;
+        $p['notifs']=array_values(array_filter($a['notifs']??[],fn($n)=>in_array($n['to']??'',$recipients,true)));
         $p['usuarios']=[];$p['bitacora']=[];
         if(in_array($role,['estudiante','egresado'],true))$p['docs']=array_values(array_filter($a['docs']??[],fn($r)=>self::academicScope('docs',$r,$full,$user)));
+        if (isset(self::$roleOverrides[$user['rol']]['base']) && $ar !== '') {
+            foreach ($p['perms'][$ar] ?? [] as $module => $level) {
+                $p['perms'][$ar][$module] = self::level($full, $user, $module);
+            }
+        }
         $out['academico']=$p;
         return $out;
     }
     private static function changed(array $a,array $b): bool { return self::canonical($a)!==self::canonical($b); }
     private static function canonical(mixed $value): mixed
     {if(!is_array($value))return $value;if(!array_is_list($value))ksort($value);return array_map(self::canonical(...),$value);}
-    public static function equal(mixed $a,mixed $b): bool{return self::canonical($a)===self::canonical($b);}
+    public static function equal(mixed $a,mixed $b): bool{return $a === $b || self::canonical($a)===self::canonical($b);}
     public static function apply(array $full,array $visible,array $incoming,array $user): array
     {
         if(array_diff(array_keys($visible),array_keys($incoming)))throw new PortalError(422,'El contenido está incompleto. Recarga la página.');
@@ -195,12 +279,12 @@ final class PortalPolicy
                     if(self::equal($settingValue,$visible['config'][$setting]??null))continue;
                     $allowed=$role==='admin'||($role==='imagen'&&in_array($setting,['home','popup','temas','tema'],true))||($role==='atencion'&&$setting==='bolsa');
                     if($role!=='admin'&&!self::can($user,['home'=>'portada','popup'=>'portada','temas'=>'temas','tema'=>'temas','bolsa'=>'ix-bolsa'][$setting]??'config'))$allowed=false;
-                    if(!$allowed)throw new PortalError(403,'Tu rol no puede modificar esa configuración.');
+                    if(!$allowed||!self::canWrite($user,'config'))throw new PortalError(403,'Tu rol no puede modificar esa configuración.');
                     $out['config'][$setting]=$settingValue;
                 }
                 continue;
             }
-            if($role!=='admin'&&(!in_array($role,self::TOP[$key]??[],true)||!self::can($user,self::collectionModule($key,$user))))throw new PortalError(403,'Tu rol no puede modificar '.$key.'.');
+            if($role!=='admin'&&(!in_array($role,self::TOP[$key]??[],true)||!self::can($user,self::collectionModule($key,$user))||!self::canWrite($user,self::collectionModule($key,$user))))throw new PortalError(403,'Tu rol no puede modificar '.$key.'.');
             if(is_array($value)&&array_is_list($value)&&is_array($full[$key]??null)&&array_is_list($full[$key])){
                 $out[$key]=self::mergeRows($key,$full[$key],$visible[$key]??[],$value,$user,fn($row)=>self::topScope($key,$row,$user));
             }elseif($role==='admin'||isset(self::TOP[$key]))$out[$key]=$value;
@@ -214,6 +298,7 @@ final class PortalPolicy
         foreach($incoming as $key=>$value){
             if(self::equal($value,$base[$key]??null))continue;
             if(in_array($key,['usuarios','bitacora'],true))continue;
+            if(in_array($key, ImportCatalog::EXTRA, true))throw new PortalError(403,'Usa el módulo de importaciones para modificar este catálogo.');
             if($key==='notifs'){
                 $by=[];foreach($value as $n)if(is_array($n))$by[(string)($n['id']??'')]=$n;
                 foreach($out['notifs'] as &$n){$candidate=$by[(string)$n['id']]??null;if(!$candidate)continue;

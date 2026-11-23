@@ -42,7 +42,7 @@ function e(string $value): string { return htmlspecialchars($value, ENT_QUOTES, 
 <label>Usuario<input name="username" required pattern="[a-z0-9._-]{3,80}" autocomplete="off"></label>
 <label>Correo<input type="email" name="email" required maxlength="254" autocomplete="email"></label>
 <label>Rol<select name="role" style="display:block;width:100%;padding:10px"><?php foreach(PortalPolicy::definitions()['roles'] as $key=>$r):if(in_array($key,['imagen','transparencia'],true))continue;?><option value="<?=e($key)?>"><?=e($r['label'])?></option><?php endforeach ?></select></label>
-<label>Programa del coordinador<input name="programaId" placeholder="Ej.: apsti"></label><label>Vínculo académico<input name="vin" placeholder="doc:2, est:1 o emp:1"></label><label>Persona del docente<input name="personaId" placeholder="ID de la persona en Plana docente"></label><label>DNI / RUC<input name="dni"></label><label>Área<input name="area"></label>
+<label>Programa del perfil vinculado<input name="programaId" placeholder="Ej.: apsti"></label><label>Vínculo académico<input name="vin" placeholder="doc:2, est:1 o emp:1"></label><label>Persona del docente<input name="personaId" placeholder="ID de la persona en Plana docente"></label><label>DNI / RUC<input name="dni"></label><label>Código del área<input name="area" placeholder="Ej.: MP"></label>
 <label>Contraseña nueva<input type="password" name="password" required minlength="12" maxlength="72" autocomplete="new-password"></label>
 <label>Repetir contraseña<input type="password" name="password_confirmation" required minlength="12" maxlength="72" autocomplete="new-password"></label><button>Crear cuenta</button>
 </form></section><?php endif ?>

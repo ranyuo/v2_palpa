@@ -28,7 +28,8 @@ final class PortalAcademic
         }
         foreach($contracts as $key=>$spec){if($key==='usuarios')continue;
             if(!is_array($a[$key]??null)||!array_is_list($a[$key]))throw new PortalError(422,'Catálogo académico no válido: '.$key.'.');
-            foreach($a[$key] as &$row){if(!is_array($row))throw new PortalError(422,'Registro académico no válido.');$prior=PortalPolicy::find($o[$key]??[],'id',$row['id']??null);if(PortalPolicy::equal($prior,$row))continue;
+            $previousById=array_column($o[$key]??[],null,'id');
+            foreach($a[$key] as &$row){if(!is_array($row))throw new PortalError(422,'Registro académico no válido.');$prior=$previousById[$row['id']??0]??null;if(PortalPolicy::equal($prior,$row))continue;
                 if(!isset($row['id'])||(!is_int($row['id'])&&!is_string($row['id']))||filter_var($row['id'],FILTER_VALIDATE_INT)===false||(int)$row['id']<1)throw new PortalError(422,'Identificador académico no válido.');$row['id']=(int)$row['id'];
                 foreach(['prog','est','mod','emp'] as $field)if(array_key_exists($field,$row)&&$row[$field]!==''&&$row[$field]!==null){if(filter_var($row[$field],FILTER_VALIDATE_INT)===false)throw new PortalError(422,'Vínculo académico no válido.');$row[$field]=(int)$row[$field];}
                 foreach($spec['fields'] as $f){$v=$row[$f['name']]??null;$empty=$v===null||$v===''||(is_array($v)&&$v===[]);

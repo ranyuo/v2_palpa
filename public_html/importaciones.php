@@ -93,6 +93,7 @@ main{max-width:1160px}section{margin:24px 0}nav{display:flex;gap:12px;flex-wrap:
 <section>
 <h2><?=e($modules[$module][0])?></h2>
 <p><a href="?module=<?=e($module)?>&amp;action=plantilla">Descargar plantilla Excel</a></p>
+<p>La hoja <strong>Ejemplos</strong> contiene dos registros ficticios. Completa la hoja <strong>Datos</strong> con tus registros y conserva los encabezados. La intranet solo importa la hoja Datos.</p>
 <p>Campos obligatorios: <?=e(implode(', ', $required))?>. Usa Texto en Excel para los DNI, los códigos, las fechas (AAAA-MM-DD) y las horas (HH:MM). Ingresa los códigos del catálogo para vincular programas, módulos y unidades. Separa listas con comas.</p>
 <?php if (in_array($module, ImportCatalog::EXTRA, true)): ?>
 <p><a href="?module=<?=e($module)?>&amp;action=catalogo">Consultar registros del catálogo</a></p>

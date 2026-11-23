@@ -8,7 +8,7 @@ El botón de descarga sirve los archivos de `portal-private/plantillas/`. Incluy
 
 ## Operar la carga
 
-En **Mi panel → Importar desde Excel**, selecciona el catálogo y descarga su plantilla. Conserva una sola hoja con la primera fila de encabezados. Usa los códigos de catálogo para los vínculos. Las fechas y horas se escriben como texto, en formato `AAAA-MM-DD` y `HH:MM`. Las listas de días, ciclos y unidades se separan por comas. Las celdas opcionales vacías mantienen el valor anterior si se autoriza una actualización. Para programas nuevos sin modalidad indicada se usa Presencial.
+En **Mi panel → Importar desde Excel**, selecciona el catálogo y descarga su plantilla. Completa la hoja Datos y conserva los encabezados de la primera fila. La hoja Ejemplos contiene dos registros ficticios de referencia y se omite al importar. También se aceptan las plantillas anteriores de una sola hoja. Usa los códigos de catálogo para los vínculos. Las fechas y horas se escriben como texto, en formato `AAAA-MM-DD` y `HH:MM`. Las listas de días, ciclos y unidades se separan por comas. Las celdas opcionales vacías mantienen el valor anterior si se autoriza una actualización. Para programas nuevos sin modalidad indicada se usa Presencial.
 
 | Módulo | Clave y referencias |
 | --- | --- |

@@ -58,6 +58,17 @@ function loadRow(PortalApp $app, string $module, array $row): array
     return $result;
 }
 
+foreach (array_keys(ImportCatalog::MODULES) as $module) {
+    $file = dirname(__DIR__).'/portal-private/plantillas/palpa-'.$module.'.xlsx';
+    try {
+        ImportWorkbook::read($file, ImportCatalog::columns($module));
+        throw new RuntimeException('Se interpretaron como datos los ejemplos de '.$module.'.');
+    } catch (PortalError $error) {
+        check($error->status === 422 && str_contains($error->getMessage(), 'Agrega al menos una fila'),
+            'La plantilla '.$module.' debe reconocer Datos como hoja vacía: '.$error->getMessage());
+    }
+}
+
 $period = $app->bootstrap()['data']['academico']['cfg']['periodo'];
 $program = ['cod'=>'CARGA-QA','nombre'=>'Programa Carga QA','dur'=>'3 años','sem'=>'6','activo'=>'1'];
 loadRow($app,'programas',$program);

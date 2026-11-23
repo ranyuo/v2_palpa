@@ -4,6 +4,8 @@ declare(strict_types=1);
 final class ImportWorkbook
 {
     private const SHEET = 'xl/worksheets/sheet1.xml';
+    private const OFFICE_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    private const PACKAGE_REL = 'http://schemas.openxmlformats.org/package/2006/relationships';
     private const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 
     public static function template(array $columns): string
@@ -45,7 +47,7 @@ final class ImportWorkbook
         rmdir(dirname($path));
     }
 
-    private static function xml(PharData $zip, string $entry, int $max): SimpleXMLElement
+    private static function xml(PharData $zip, string $entry, int $max, string $namespace = self::NS): SimpleXMLElement
     {
         if (!isset($zip[$entry]) || $zip[$entry]->getSize() > $max) {
             throw new PortalError(422, 'Falta una hoja válida o supera el tamaño permitido.');
@@ -58,7 +60,32 @@ final class ImportWorkbook
         if ($xml === false) {
             throw new PortalError(422, 'El contenido Excel no es válido.');
         }
-        return $xml->children(self::NS);
+        return $xml->children($namespace);
+    }
+
+    private static function dataSheet(PharData $zip): string
+    {
+        $workbook = self::xml($zip, 'xl/workbook.xml', 100_000);
+        $sheets = [];
+        foreach ($workbook->sheets->sheet as $sheet) {
+            $sheets[(string)$sheet->attributes()['name']] = (string)$sheet->attributes(self::OFFICE_REL)['id'];
+        }
+        $count = count($workbook->sheets->sheet);
+        if ($count === 1 && !array_key_exists('Ejemplos', $sheets)) {
+            return self::SHEET;
+        }
+        if ($count !== 2 || empty($sheets['Datos']) || empty($sheets['Ejemplos']) || $sheets['Datos'] === $sheets['Ejemplos']) {
+            throw new PortalError(422, 'Usa las hojas Datos y Ejemplos de la plantilla o un libro con una sola hoja de datos.');
+        }
+        $relationships = self::xml($zip, 'xl/_rels/workbook.xml.rels', 100_000, self::PACKAGE_REL);
+        foreach ($relationships->Relationship as $relationship) {
+            $attributes = $relationship->attributes();
+            if ((string)$attributes['Id'] !== $sheets['Datos'] || (string)$attributes['Type'] !== self::OFFICE_REL.'/worksheet') continue;
+            if (preg_match('~^(?:/xl/)?(worksheets/sheet[1-9][0-9]*\.xml)$~D', (string)$attributes['Target'], $match)) {
+                return 'xl/'.$match[1];
+            }
+        }
+        throw new PortalError(422, 'No se pudo localizar la hoja Datos en el archivo.');
     }
 
     public static function read(string $file, array $columns): array
@@ -69,8 +96,7 @@ final class ImportWorkbook
                 throw new PortalError(422, 'El archivo supera los 2 MB o no se pudo leer.');
             }
             $zip = new PharData($path);
-            $workbook = self::xml($zip, 'xl/workbook.xml', 100_000);
-            if (count($workbook->sheets->sheet) !== 1) throw new PortalError(422, 'Usa un libro con una sola hoja.');
+            $sheet = self::dataSheet($zip);
             $shared = [];
             if (isset($zip['xl/sharedStrings.xml'])) {
                 foreach (self::xml($zip, 'xl/sharedStrings.xml', 4_000_000)->si as $item) {
@@ -80,7 +106,7 @@ final class ImportWorkbook
             $rows = [];
             $header = [];
             $last = 0;
-            foreach (self::xml($zip, self::SHEET, 5_000_000)->sheetData->row as $row) {
+            foreach (self::xml($zip, $sheet, 5_000_000)->sheetData->row as $row) {
                 $number = (int)$row->attributes()['r'];
                 if ($number <= $last || $number > 2001) {
                     throw new PortalError(422, 'Se permiten hasta 2000 filas de datos por archivo.');
@@ -130,7 +156,7 @@ final class ImportWorkbook
                 }
             }
             if (!$header || !$rows) {
-                throw new PortalError(422, 'Usa la plantilla y agrega al menos una fila de datos.');
+                throw new PortalError(422, 'Agrega al menos una fila en la hoja Datos de la plantilla.');
             }
             return $rows;
         } catch (UnexpectedValueException|BadMethodCallException $error) {

@@ -2,11 +2,13 @@
 
 Actualización del 23 de noviembre de 2026 · v2_palpa f1930f8c4df2 · esquema 8
 
-[Descargar el paquete en Word y PDF](Manuales_Palpa_Word_y_PDF.zip)
+**Manual simplificado de los cambios** (2 páginas)
+
+[Descargar PDF](https://github.com/ranyuo/v2_palpa/raw/refs/heads/main/documentacion/Palpa/Manual-simplificado-cambios-Palpa.pdf) · [Descargar Word](https://github.com/ranyuo/v2_palpa/raw/refs/heads/main/documentacion/Palpa/Manual-simplificado-cambios-Palpa.docx)
+
+[Descargar todos los manuales en ZIP](https://github.com/ranyuo/v2_palpa/raw/refs/heads/main/documentacion/Palpa/Manuales_Palpa_Word_y_PDF.zip) · Incluye el manual simplificado.
 
 Este suplemento actualiza la edición base del 10 de noviembre de 2026 en las funciones indicadas. La referencia es el código en GitHub y las pruebas de la versión. La configuración y el despliegue en producción quedan por verificar.
-
-**Manual simplificado de los cambios** (2 páginas) · [PDF](Manual-simplificado-cambios-Palpa.pdf) · [Word](Manual-simplificado-cambios-Palpa.docx)
 
 | Documento | PDF completo | Inicio del suplemento | Word editable |
 |---|---:|---:|---|

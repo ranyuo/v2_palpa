@@ -65,6 +65,7 @@ loadRow($app,'periodos',['periodo'=>$period,'inicio'=>'2026-01-01','fin'=>'2026-
 $group = ['programa'=>'CARGA-QA','ciclo'=>'VI','periodo'=>$period,'sec'=>'A','turno'=>'Tarde'];
 loadRow($app,'ciclos',$group);
 loadRow($app,'secciones',$group);
+loadRow($app,'secciones',[...$group,'sec'=>'B']);
 loadRow($app,'modulos',['programa'=>'CARGA-QA','cod'=>'MOD-QA','nombre'=>'Módulo QA','ciclos'=>'VI']);
 loadRow($app,'uds',['programa'=>'CARGA-QA','cod'=>'UD-CARGA-QA','nombre'=>'Unidad QA','ciclo'=>'VI','horas'=>'4','cred'=>'2','modulo'=>'MOD-QA']);
 loadRow($app,'ambientes',['programa'=>'CARGA-QA','cod'=>'LAB-CARGA-QA','tipo'=>'Laboratorio','cap'=>'30','ubic'=>'Sede principal']);
@@ -129,4 +130,43 @@ check($restored['schema_version'] === 8 && $restored['data']['academico']['matri
 check($restored['data']['academico']['estudiantes'] === $before['data']['academico']['estudiantes'], 'La actualización conserva el maestro anterior.');
 $rows = $app->db()->query("SELECT details FROM intranet_audit WHERE action='Confirmar importación'")->fetchAll(PDO::FETCH_COLUMN);
 check(count($rows) >= 14 && isset(json_decode($rows[0],true)['sha256']), 'Auditoría registrada para las confirmaciones.');
-echo "Importaciones y roles de Palpa verificados en MySQL.\n";
+
+
+$_SERVER['REMOTE_ADDR'] = '127.0.0.45';
+$teacher = ['dni'=>'00123454','nombres'=>'Nombre distinto','apellidos'=>'Prueba','especialidad'=>'Informática','dias'=>'Lun','desde'=>'08:00','hasta'=>'16:00'];
+$existing = $app->bootstrap();
+$existing['data']['personas'][] = ['id'=>'qa-ficha-docente','dni'=>$teacher['dni'],'tipo'=>'Docente','nombres'=>'Nombre vigente','apellidos'=>'Prueba','especialidad'=>'Informática','estado'=>'Borrador'];
+$app->save(['data'=>$existing['data'],'revision'=>$existing['revision']]);
+$app->saveRole(['role'=>'rol-qa-altas','label'=>'QA Altas Docentes','base'=>'secretaria','mods'=>[],'write'=>[],'imports'=>['docentes'=>1],'expected'=>null]);
+$app->createAccount(['username'=>'qa-altas','name'=>'QA Altas','role'=>'rol-qa-altas','password'=>'PruebaIntranet-2026!']);
+$app->login(['username'=>'qa-altas','password'=>'PruebaIntranet-2026!']);
+$plan = preview($app,'docentes',[$teacher,[...$teacher,'dni'=>'00123455','desde'=>'17:00']]);
+check(isset($plan['report'][2]['errors']['nombres'], $plan['report'][3]['errors']['hasta']), 'La ficha anterior se protege y los errores indican su columna.');
+check($app->confirmImport($plan['token'],false)['applied']===0,'El rol de altas no sobrescribe una ficha existente.');
+loadRow($app,'docentes',[...$teacher,'nombres'=>'Nombre vigente']);
+$app->login(['username'=>'admin','password'=>'PruebaIntranet-2026!']);
+$existing = $app->bootstrap();
+check(PortalPolicy::find($existing['data']['personas'],'id','qa-ficha-docente')['nombres']==='Nombre vigente','La ficha personal conserva el nombre.');
+$rejections = $app->db()->query("SELECT COUNT(*) FROM intranet_audit WHERE action='Rechazar archivo'");
+$before = (int)$rejections->fetchColumn();
+rejected(422,fn()=>$app->previewImport('estudiantes','alumnos.csv',__FILE__));
+rejected(422,fn()=>$app->rejectImportUpload('estudiantes','incompleto.xlsx'));
+$after = (int)$app->db()->query("SELECT COUNT(*) FROM intranet_audit WHERE action='Rechazar archivo'")->fetchColumn();
+check($after===$before+2,'Los rechazos previos a la vista previa quedan auditados.');
+
+$currentStudent = PortalPolicy::find($existing['data']['academico']['estudiantes'],'dni','00123461');
+$plan = preview($app,'estudiantes',[[...$student,'dni'=>'00123456','periodo'=>'2070-I']]);
+check(isset($plan['report'][2]['errors']['periodo']), 'El maestro de alumnos exige un periodo de catálogo para el alta.');
+$otherProgram = PortalPolicy::find($existing['data']['academico']['programas'],'id',$existing['data']['academico']['progMap']['apsti'])['cod'];
+$historical = ['programa'=>$otherProgram,'periodo'=>'2001-I','ciclo'=>'I','sec'=>'A','turno'=>'Tarde'];
+loadRow($app,'periodos',$historical);
+loadRow($app,'ciclos',$historical);
+loadRow($app,'secciones',$historical);
+loadRow($app,'matriculas',['dni'=>$currentStudent['dni'],...$historical]);
+$updated = $app->bootstrap();
+check(PortalPolicy::find($updated['data']['academico']['estudiantes'],'dni',$currentStudent['dni']) === $currentStudent,
+    'La matrícula histórica de otro programa conserva la ficha actual.');
+$regular = current(array_filter($updated['data']['academico']['estudiantes'],fn($row)=>$row['estado']==='Regular'));
+$plan = preview($app,'titulos',[['cod'=>'QA-TITULO-NO-EGRESADO','dni'=>$regular['dni'],'culm'=>'2025-11-01','tit'=>'2025-12-01','resol'=>'R-01']]);
+check(isset($plan['report'][2]['errors']['dni']), 'La falta de egreso indica la columna DNI.');
+echo "Importaciones, roles y regresiones de QA verificados en MySQL.\n";

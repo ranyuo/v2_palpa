@@ -35,7 +35,7 @@ try {
             $file = $_FILES['excel'] ?? [];
             if (($file['error'] ?? null) !== UPLOAD_ERR_OK || !is_string($file['tmp_name'] ?? null) ||
                 !is_string($file['name'] ?? null) || !is_uploaded_file($file['tmp_name'])) {
-                throw new PortalError(422, 'No se recibió un archivo Excel válido. Selecciona un libro de hasta 2 MB.');
+                $app->rejectImportUpload($module, is_string($file['name'] ?? null) ? $file['name'] : '');
             }
             $preview = $app->previewImport($module, $file['name'], $file['tmp_name']);
         } elseif ($action === 'confirmar') {
@@ -92,8 +92,8 @@ main{max-width:1160px}section{margin:24px 0}nav{display:flex;gap:12px;flex-wrap:
 <?php if (in_array($module, ImportCatalog::EXTRA, true)): ?>
 <p><a href="?module=<?=e($module)?>&amp;action=catalogo">Consultar registros del catálogo</a></p>
 <?php endif ?>
-<?php if ($module === 'matriculas' || $module === 'secciones'): ?>
-<p>Registra primero los programas, periodos y ciclos. Cada matrícula requiere la sección y el turno que ya figuran en el catálogo.</p>
+<?php if (in_array($module, ['estudiantes','matriculas','secciones'], true)): ?>
+<p>Registra primero los programas, periodos y ciclos. Para importar alumnos o matrículas, la sección y el turno deben existir en el catálogo.</p>
 <?php elseif ($module === 'cuentas'): ?>
 <p>Utiliza el DNI de un alumno, egresado o docente registrado. La intranet genera las claves temporales al confirmar.</p>
 <?php endif ?>

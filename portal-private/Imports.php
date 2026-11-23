@@ -58,17 +58,37 @@ trait PortalImports
         return PortalPolicy::importPermissions($actor)[$module] ?? throw new PortalError(403, 'Tu rol no puede importar este módulo.');
     }
 
+    public function rejectImportUpload(string $module, string $name): never
+    {
+        $actor = $this->importUser();
+        $this->importPermission($actor, $module);
+        $this->rate('import-preview-'.$actor['server_id'], 30, 60);
+        $error = new PortalError(422, 'No se recibió un archivo Excel válido. Selecciona un libro de hasta 2 MB.');
+        $this->auditImportRejection($actor, $module, $name, null, $error);
+        throw $error;
+    }
+
+    private function auditImportRejection(array $actor, string $module, string $name, ?string $hash, PortalError $error): void
+    {
+        $name = basename(str_replace(chr(92), '/', $name));
+        $name = mb_strcut(mb_scrub($name, 'UTF-8'), 0, 200, 'UTF-8');
+        PortalAudit::write($this, 'Rechazar archivo', 'Importaciones', $module, [
+            'archivo'=>$name, 'sha256'=>$hash, 'motivo'=>$error->getMessage(),
+        ], $actor);
+    }
+
     public function previewImport(string $module, string $name, string $file): array
     {
         $actor = $this->importUser();
         $permission = $this->importPermission($actor, $module);
         $this->rate('import-preview-'.$actor['server_id'], 30, 60);
-        $name = substr(basename(str_replace('\\', '/', $name)), 0, 200);
-        if (!preg_match('/\.xlsx$/iD', $name) || !preg_match('//u', $name)) {
-            throw new PortalError(422, 'Selecciona un libro de Excel .xlsx.');
-        }
-        $hash = hash_file('sha256', $file);
+        $name = basename(str_replace(chr(92), '/', $name));
+        $hash = null;
         try {
+            if (!preg_match('/\.xlsx$/iuD', $name) || strlen($name)>200) {
+                throw new PortalError(422, 'Selecciona un libro de Excel .xlsx con un nombre válido.');
+            }
+            $hash = hash_file('sha256', $file);
             $rows = ImportWorkbook::read($file, ImportCatalog::columns($module));
             if ($module === 'cuentas' && count($rows) > 200) {
                 throw new PortalError(422, 'Divide la creación de cuentas en archivos de hasta 200 filas.');
@@ -77,7 +97,7 @@ trait PortalImports
             $data = json_decode($state['data'], true, flags: JSON_THROW_ON_ERROR);
             $plan = $this->planImport($data, $rows, $module, $actor, $permission);
         } catch (PortalError $error) {
-            PortalAudit::write($this, 'Rechazar archivo', 'Importaciones', $module, ['archivo'=>$name,'sha256'=>$hash,'motivo'=>$error->getMessage()], $actor);
+            $this->auditImportRejection($actor, $module, $name, $hash, $error);
             throw $error;
         }
         $token = bin2hex(random_bytes(24));
@@ -266,8 +286,18 @@ trait PortalImports
         $student = null;
         if (in_array($module, ['matriculas','certs','titulos'], true)) {
             $student = $this->importReference($a['estudiantes'], 'dni', $values['dni'], 'dni');
-            if ($program && (int)$student['prog'] !== (int)$program['id']) {
+            $historicalTransfer = $module === 'matriculas' && $row['periodo'] < $a['cfg']['periodo']
+                && PortalPolicy::scope($actor) === 'institucion';
+            if (!$historicalTransfer && $program && (int)$student['prog'] !== (int)$program['id']) {
                 throw new ImportColumnError('programa', 'El programa no coincide con el del alumno.');
+            }
+            if ($module === 'titulos') {
+                if (!in_array($student['estado'], ['Egresado','Titulado'], true)) {
+                    throw new ImportColumnError('dni', 'El alumno debe figurar como egresado o titulado.');
+                }
+                if ($row['tit'] < $row['culm']) {
+                    throw new ImportColumnError('tit', 'La fecha del título es anterior a la culminación.');
+                }
             }
             $row['est'] = $student['id'];
             unset($row['dni']);
@@ -280,6 +310,9 @@ trait PortalImports
             unset($row['modulo']);
         }
         if ($module === 'docentes') {
+            if ($values['desde'] >= $values['hasta']) {
+                throw new ImportColumnError('hasta', 'La hora final del docente debe ser posterior a la inicial.');
+            }
             $people = ImportCatalog::matches($next['personas'], 'dni', $values['dni']);
             if (count($people)>1) throw new ImportColumnError('dni','Hay más de una ficha de persona con este DNI.');
             $personIndex = $people[0] ?? count($next['personas']);
@@ -289,6 +322,14 @@ trait PortalImports
             }
             $person = array_replace($oldPerson ?: ['id'=>'import-doc-'.$values['dni'],'tipo'=>'Docente','estado'=>'Borrador','programas'=>[]],
                 array_intersect_key($values, array_flip(['dni','nombres','apellidos','especialidad','correo'])));
+            if ($oldPerson && !PortalPolicy::find($a['docentes'], 'per', $oldPerson['id'])) {
+                foreach (['nombres','apellidos','especialidad','correo'] as $field) {
+                    if (isset($values[$field]) && $values[$field] !== ($oldPerson[$field] ?? '')) {
+                        throw new ImportColumnError($field, 'La ficha personal ya existe. Usa los datos vigentes de la ficha antes de dar de alta la carga docente.');
+                    }
+                }
+                $person = $oldPerson;
+            }
             $next['personas'][$personIndex] = $person;
             $row = ['per'=>$person['id'],'dias'=>$values['dias'],'desde'=>$values['desde'],'hasta'=>$values['hasta']];
             if (isset($values['unidades']) || !$oldPerson) {
@@ -316,9 +357,7 @@ trait PortalImports
             $this->importReference(array_filter($a['ciclos'], fn($r)=>$r['prog']===$row['prog']), 'ciclo', $row['ciclo'], 'ciclo');
         }
         if ($module === 'matriculas') {
-            $matches = array_filter($a['secciones'], fn($group) =>
-                !array_diff_assoc(array_intersect_key($row, array_flip(['prog','periodo','ciclo','sec','turno'])), $group));
-            if (!$matches) throw new ImportColumnError('sec', 'El grupo no existe. Importa primero el periodo, el ciclo y la sección.');
+            $this->requireImportGroup($a, $row);
         }
         $identity = match ($module) {
             'matriculas' => ['est','periodo'],
@@ -336,20 +375,38 @@ trait PortalImports
             }
             return true;
         }));
-        if (count($matches) > 1) throw new ImportColumnError(implode(' ', $identity), 'La clave coincide con varios registros existentes.');
+        if (count($matches) > 1) throw new ImportColumnError(ImportCatalog::MODULES[$module][1], 'La clave coincide con varios registros existentes.');
         $index = $matches[0] ?? count($target);
         $prior = $target[$index] ?? [];
         if ($prior) {
             $this->assertImportScope($data, $actor, isset($prior['prog']) ? (int)$prior['prog'] : ($program ? (int)$program['id'] : ($student ? (int)$student['prog'] : null)));
-            if (!empty($prior['deleted'])) throw new ImportColumnError(implode(' ', $identity), 'La clave pertenece a un registro eliminado.');
+            if (!empty($prior['deleted'])) throw new ImportColumnError(ImportCatalog::MODULES[$module][1], 'La clave pertenece a un registro eliminado.');
             if ($module === 'certificados' && PortalPolicy::scope($actor) === 'programa' && ($prior['programaId'] ?? '') !== ($actor['programaId'] ?? '')) {
                 throw new ImportColumnError('programa', 'El documento está fuera del programa autorizado.');
+            }
+        }
+        if ($module === 'estudiantes' && (!$prior || $permission === 2)) {
+            $groupFields = array_flip(['prog','periodo','ciclo','sec','turno']);
+            $group = array_intersect_key($row, $groupFields);
+            if (!PortalPolicy::equal($group, array_intersect_key($prior, $groupFields))) {
+                $this->requireImportGroup($a, $row);
             }
         }
         if (!$prior && in_array($module, ['certs','titulos'], true)) {
             $codeColumn = $module === 'certs' ? 'num' : 'cod';
             if (ImportCatalog::matches($next['certificados'], 'codigo', $row[$codeColumn])) {
                 throw new ImportColumnError($codeColumn, 'El código ya está registrado en el catálogo de documentos emitidos.');
+            }
+            if (($row['estadoDoc'] ?? 'Válido') !== 'Anulado') {
+                foreach ($a[$module] as $document) {
+                    if (($document['estadoDoc'] ?? 'Válido') === 'Anulado' || $document['est'] !== $row['est']) continue;
+                    if ($module === 'titulos') {
+                        throw new ImportColumnError('dni', 'El alumno ya tiene un título vigente.');
+                    }
+                    if ($document['mod'] === $row['mod']) {
+                        throw new ImportColumnError('modulo', 'El alumno ya tiene una certificación vigente para el módulo.');
+                    }
+                }
             }
         }
         $candidate = array_replace($prior, $row);
@@ -414,6 +471,20 @@ trait PortalImports
             AcademicDocuments::sync($next);
         }
         return [$prior ? 'Actualizable' : 'Nuevo', $next, $prior ? $changes : []];
+    }
+
+    private function requireImportGroup(array $academic, array $row): void
+    {
+        $this->importReference($academic['periodos'], 'periodo', $row['periodo'], 'periodo');
+        $cycles = array_filter($academic['ciclos'], fn($item) => (int)$item['prog'] === (int)$row['prog']);
+        $this->importReference($cycles, 'ciclo', $row['ciclo'], 'ciclo');
+        $sections = array_filter($academic['secciones'], fn($item) =>
+            (int)$item['prog'] === (int)$row['prog'] && $item['periodo'] === $row['periodo']
+            && $item['ciclo'] === $row['ciclo'] && $item['sec'] === $row['sec']);
+        if (!$sections) throw new ImportColumnError('sec', 'La sección no existe en el programa, periodo y ciclo indicados.');
+        if (!PortalPolicy::find($sections, 'turno', $row['turno'])) {
+            throw new ImportColumnError('turno', 'La sección no tiene el turno indicado.');
+        }
     }
 
     public static function validateImportRelations(array $data): void

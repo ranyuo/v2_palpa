@@ -19,6 +19,11 @@ final class PortalContent
             $data['academico']['perms']['dir']['config']=1;
             $data['__v']=14;
         }
+        if (isset($data['academico'])) {
+            foreach (['matriculas', 'periodos', 'ciclos', 'secciones'] as $collection) {
+                $data['academico'][$collection] ??= [];
+            }
+        }
         foreach ($data['academico']['areas'] ?? [] as $i => $area) {
             $data['academico']['areas'][$i]['nivel'] = self::areaLevel($area);
         }

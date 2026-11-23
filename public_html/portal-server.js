@@ -2,7 +2,7 @@
 function portalURL(url) { return url.startsWith('/api/') ? '/index.php?route=' + encodeURIComponent(url.slice(1)) : url; }
 const portalBootstrap=window.PORTAL_BOOTSTRAP;
 if(portalBootstrap?.user?.cambioClave)location.replace('/accounts.php');
-for(const [key,value] of Object.entries(portalBootstrap.roles||{}))if(ROLES[key])Object.assign(ROLES[key],value);
+for(const [key,value] of Object.entries(portalBootstrap.roles||{}))ROLES[key]=Object.assign(ROLES[key]||{},value);
 let portalRevision=portalBootstrap.revision;
 let portalBaseline=structuredClone(portalBootstrap.data);
 const portalPasswords=new Map();
@@ -79,7 +79,7 @@ function portalAccountOperations(){
 }
 function portalNormalizeAutomaticChanges(){
   if(!DB.academico||!portalBaseline.academico||currentUser()?.rol==='admin')return;
-  const role=currentUser().rol;
+  const role=intranetBaseRole(currentUser());
   const academicRole=IX_ROLE[role];const permissions=portalBaseline.academico.perms[academicRole]||{};
   const modules={estudiantes:'alumnos',sesiones:'horarios',publicados:'horarios',certs:'certificados',notas:'certificados',titulos:'titulos',empresas:'bolsa',ofertas:'bolsa',postulaciones:'bolsa',perfilesLab:'bolsa',perfilesDoc:'docentes',uds:'config',ambientes:'config',modulos:'config',areas:'mesa',tramites:'mesa',cfg:'config',perms:'usuarios',docs:'certificados',seq:'certificados'};
   const own=role==='docente'?['perfilesDoc']:['estudiante','egresado'].includes(role)?['estudiantes','perfilesLab','postulaciones','docs']:role==='empresa'?['empresas','ofertas','postulaciones']:[];

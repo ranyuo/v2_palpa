@@ -23,6 +23,7 @@ require_once __DIR__.'/Patch.php';
 require_once __DIR__.'/Rules.php';
 require_once __DIR__.'/Services.php';
 require_once __DIR__.'/Academic.php';
+require_once __DIR__.'/Imports.php';
 require_once __DIR__.'/Numbering.php';
 require_once __DIR__.'/Mail.php';
 require_once __DIR__.'/Notifications.php';
@@ -31,7 +32,7 @@ require_once __DIR__.'/DocumentLookup.php';
 
 final class PortalApp
 {
-    use PortalAccounts, PortalForms;
+    use PortalAccounts, PortalForms, PortalImports;
     private const PUBLIC_COLLECTIONS = ['__v', 'config', 'slides', 'enlaces', 'paginas', 'reconocimientos',
         'programas', 'personas', 'jerarquica', 'egresados', 'categoriasNoticia', 'noticias', 'eventos',
         'tiposDocumento', 'documentos', 'tupa', 'tupaDocs', 'estadisticas', 'licenciamiento', 'inversiones',
@@ -192,7 +193,7 @@ final class PortalApp
         $data=IntranetScope::project(PortalPolicy::project($full,$user,$this->publicData($full)));
         $data['usuarios']=$this->visibleAccounts($user,$full);
         if($user&&$user['rol']==='admin'){$data['auditoria']=[...PortalAudit::rows($this),...PortalAudit::legacy($this,$full)];$data['academico']['bitacora']=array_map(fn($r)=>['id'=>$r['id'],'f'=>$r['fecha'],'u'=>$r['usuario'],'a'=>$r['accion'],'m'=>$r['entidad'],'d'=>$r['registro'].' · '.$r['detalle']],PortalAudit::rows($this));}
-        return ['data'=>$data,'revision'=>(int)$state['revision'],'user'=>$user,'csrf'=>$_SESSION['csrf'],'numberingYear'=>(int)date('Y'),'schema_version'=>PortalSchema::VERSION,'roles'=>PortalPolicy::definitions()['roles'],'documentLookup'=>$this->documentLookupEnabled(),'scope'=>['mode'=>'intranet','website'=>'https://www.istpalpa.edu.pe/','modules'=>IntranetScope::MODULES]];
+        return ['data'=>$data,'revision'=>(int)$state['revision'],'user'=>$user,'csrf'=>$_SESSION['csrf'],'numberingYear'=>(int)date('Y'),'schema_version'=>PortalSchema::VERSION,'roles'=>PortalPolicy::definitions()['roles'],'imports'=>$user&&!empty(PortalPolicy::importPermissions($user))&&empty($user['cambioClave']),'documentLookup'=>$this->documentLookupEnabled(),'scope'=>['mode'=>'intranet','website'=>'https://www.istpalpa.edu.pe/','modules'=>IntranetScope::MODULES]];
     }
     public function input(): array
     {
@@ -335,6 +336,7 @@ final class PortalApp
             $aliases=[];$data=PortalFiles::persist($this,$data,$aliases,0,$previous);
             PortalServices::apply($previous,$data,$user);PortalRules::apply($previous,$data,$user);PortalRules::catalogs($data);
             PortalAcademic::validate($previous,$data);
+            self::validateImportRelations($data);
             AcademicDocuments::validate($previous,$data);PortalDomain::validate($previous,$data,$user);PortalDomain::syncCertificates($data);AcademicDocuments::sync($data);$this->validateBindings($data);
             $allAccounts=array_map($this->accountDto(...),$this->db()->query('SELECT * FROM intranet_users')->fetchAll());
             PortalDomain::notifications($previous,$data,$allAccounts);
@@ -412,7 +414,8 @@ final class PortalApp
             if(in_array($row['role'],['estudiante','egresado'],true))$target=PortalPolicy::find($data['academico']['estudiantes'],'id',PortalPolicy::binding($p,'est'));
             elseif($row['role']==='empresa')$target=PortalPolicy::find($data['academico']['empresas'],'id',PortalPolicy::binding($p,'emp'));
             elseif($row['role']==='docente'){$target=PortalPolicy::find($data['academico']['docentes'],'id',PortalPolicy::binding($p,'doc'));$person=PortalPolicy::find($data['personas'],'id',$p['personaId']??'');if(!$person||($person['deleted']??false))$target=null;}
-            elseif($row['role']==='coordinador')$target=PortalPolicy::find($data['programas'],'id',$p['programaId']??'');else continue;
+            elseif(PortalPolicy::scope(['rol'=>$row['role']])==='area')$target=PortalPolicy::find($data['academico']['areas'],'cod',$p['area']??'');
+            elseif(PortalPolicy::scope(['rol'=>$row['role']])==='programa')$target=PortalPolicy::find($data['programas'],'id',$p['programaId']??'');else continue;
             if(!$target||($target['deleted']??false))throw new PortalError(422,'El registro está vinculado a la cuenta activa '.$row['username'].'. Desactiva o cambia su vínculo antes de eliminarlo.');
         }
     }

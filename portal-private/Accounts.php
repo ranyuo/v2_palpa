@@ -12,20 +12,37 @@ trait PortalAccounts
     {
         $actor=$this->requireAdmin();$this->rate('roles',60,60);
         $key=$input['role']??null;$defaults=IntranetScope::roles(PortalPolicy::defaults()['roles']);
-        if(!is_string($key)||!isset($defaults[$key])||$key==='admin')throw new PortalError(422,'El administrador está protegido. Selecciona otro rol.');
-        $label=($input['reset']??false)===true?$defaults[$key]['label']:($input['label']??'');$mods=($input['reset']??false)===true?$defaults[$key]['mods']:($input['mods']??[]);
-        if(!is_string($label)||trim($label)===''||strlen($label)>100||!preg_match('/^[\p{L}\p{N} ._,()\/-]+$/u',$label)||!is_array($mods)||!array_is_list($mods))throw new PortalError(422,'Nombre o módulos del rol no válidos.');
-        foreach($mods as $mod)if(!is_string($mod)||!in_array($mod,$defaults[$key]['mods'],true))throw new PortalError(422,'Módulo ajeno al ámbito institucional del rol.');
-        $new=['label'=>trim($label),'mods'=>array_values(array_unique(['dashboard',...$mods]))];
+        if (!is_string($key) || $key === 'admin' || (!isset($defaults[$key]) && !preg_match('/^rol-[a-z0-9-]{2,26}$/D', $key))) {
+            throw new PortalError(422, 'Elige un rol válido. El administrador está protegido.');
+        }
+        $builtin = isset($defaults[$key]);
+        $reset = ($input['reset'] ?? false) === true;
+        if ($reset && !$builtin) throw new PortalError(422, 'Los perfiles personalizados se editan desde su formulario.');
+        $label = $reset ? $defaults[$key]['label'] : ($input['label'] ?? '');
+        $mods = $reset ? $defaults[$key]['mods'] : ($input['mods'] ?? []);
+        $imports = $reset ? [] : ($input['imports'] ?? []);
+        if (!is_string($label) || !is_array($mods) || !array_is_list($mods) || !is_array($imports)) {
+            throw new PortalError(422, 'Nombre o permisos del rol no válidos.');
+        }
+        foreach ($mods as $mod) if (!is_string($mod)) throw new PortalError(422,'Módulo no válido.');
+        $new = ['label'=>trim($label),'mods'=>array_values(array_unique(['dashboard',...$mods])),'imports'=>$imports];
+        if (!$builtin) {
+            $new['base'] = $input['base'] ?? '';
+            $new['write'] = $input['write'] ?? [];
+        }
+        PortalPolicy::validateRoles([$key=>$new]);
         // Los vínculos personales y el ámbito del programa no son permisos transferibles.
         $this->transaction(function()use($input,$key,$new,$actor){
             $this->state(true);
             $current=$this->roleSettings();
             if(!array_key_exists('expected',$input)||!PortalPolicy::equal($current[$key]??null,$input['expected']))throw new PortalError(409,'Otra persona modificó este rol. Recarga antes de guardar.');
+            if (isset($current[$key]['base']) && $current[$key]['base'] !== ($new['base'] ?? null)) {
+                throw new PortalError(422, 'El ámbito base se fija al crear el perfil.');
+            }
             if(($input['reset']??false)===true)unset($current[$key]);else $current[$key]=$new;
             $this->db()->prepare("INSERT INTO intranet_settings (setting_key,setting_value) VALUES ('role_permissions',?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)")->execute([json_encode($current,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)]);
             $this->db()->prepare('UPDATE intranet_users SET auth_version=auth_version+1 WHERE role=?')->execute([$key]);
-            PortalAudit::write($this,'Modificar rol','Roles',$key,['nombre'=>$new['label'],'modulos'=>$new['mods'],'restaurado'=>$input['reset']??false],$actor);
+            PortalAudit::write($this,'Modificar rol','Roles',$key,['nombre'=>$new['label'],'modulos'=>$new['mods'],'importaciones'=>$new['imports'],'gestion'=>$new['write']??[],'restaurado'=>$input['reset']??false],$actor);
             return [];
         });
         PortalPolicy::configureRoles($this->roleSettings());
@@ -48,8 +65,12 @@ trait PortalAccounts
         foreach(['programaId','personaId','vin','dni','area','cargo'] as $key){
             $value=$input[$key]??'';if(!is_string($value)||strlen($value)>200)throw new PortalError(422,'Vínculo de usuario no válido.');$profile[$key]=$value;
         }
-        $state=in_array($role,['coordinador','estudiante','egresado','empresa','docente'],true)?json_decode($this->state()['data'],true,flags:JSON_THROW_ON_ERROR):[];
-        if($role==='coordinador'&&!PortalPolicy::find($state['programas'],'id',$profile['programaId']))throw new PortalError(422,'Selecciona el programa del coordinador.');
+        $scope = PortalPolicy::scope(['rol'=>$role]);
+        $state=($scope === 'area' || $scope === 'programa' || in_array($role,['coordinador','estudiante','egresado','empresa','docente'],true))?json_decode($this->state()['data'],true,flags:JSON_THROW_ON_ERROR):[];
+        if($scope==='programa'&&!PortalPolicy::find($state['programas'],'id',$profile['programaId']))throw new PortalError(422,'Selecciona el programa del coordinador.');
+        if ($scope === 'area' && !(PortalPolicy::find($state['academico']['areas'], 'cod', $profile['area'])['activo'] ?? false)) {
+            throw new PortalError(422, 'Selecciona el código de un área activa.');
+        }
         if(in_array($role,['estudiante','egresado'],true)){
             $id=PortalPolicy::binding($profile,'est');$student=PortalPolicy::find($state['academico']['estudiantes']??[],'id',$id);
             if(!$student)throw new PortalError(422,'Vincula la cuenta con un alumno existente.');$profile['dni']=(string)$student['dni'];
@@ -98,7 +119,19 @@ trait PortalAccounts
     }
     public function createAccount(array $input,bool $authorize=true,bool $temporary=false): void
     {
-        if($authorize){$this->requireAdmin();$this->rate('accounts',120,60);}
+        if ($authorize) {
+            $this->requireAdmin();
+            $this->rate('accounts',120,60);
+            if (!$this->db()->inTransaction()) {
+                $this->transaction(function () use ($input, $temporary) {
+                    $this->state(true);
+                    $this->requireAdmin();
+                    $this->createAccount($input, false, $temporary);
+                    return [];
+                });
+                return;
+            }
+        }
         $data=$this->accountInput($input);
         // Una clave definida por otra persona es temporal: el titular debe cambiarla en su primer ingreso.
         if($temporary)$data['profile']['cambioClave']=true;
@@ -113,7 +146,7 @@ trait PortalAccounts
     }
     private function performAccountOperation(array $input): array
     {
-        $actor=$this->requireUser();$role=PortalPolicy::role($actor);$action=$input['action']??'create';
+        $actor=$this->requireUser();$role=$actor['rol'];$action=$input['action']??'create';
         if(!in_array($role,['admin','secretaria','coordinador'],true))throw new PortalError(403,'No tienes permiso para gestionar cuentas.');
         $this->rate('accounts',120,60);
         $fields=$input['account']??[];if(!is_array($fields))throw new PortalError(422,'Cuenta no válida.');

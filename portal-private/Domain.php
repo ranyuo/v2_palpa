@@ -99,7 +99,12 @@ final class PortalDomain
             self::required($r,['est','culm','tit','cod','resol'],'Título');$student=self::foreign($a['estudiantes'],$r['est'],'Alumno');
             if(!in_array($student['estado'],['Egresado','Titulado'],true)||$r['tit']<$r['culm'])throw new PortalError(422,'El título requiere un egresado y fechas válidas.');
             foreach($a['titulos'] as $other)if($other['id']!==$r['id']&&(($other['cod']===$r['cod'])||(($r['estadoDoc']??'Válido')!=='Anulado'&&($other['estadoDoc']??'Válido')!=='Anulado'&&$other['est']===$r['est'])))throw new PortalError(422,'Título duplicado.');
-            foreach($a['estudiantes'] as &$s)if($s['id']===$r['est'])$s['estado']='Titulado';unset($s);
+            if (($r['estadoDoc'] ?? 'Válido') === 'Válido') {
+                foreach ($a['estudiantes'] as &$studentRow) {
+                    if ($studentRow['id'] === $r['est']) $studentRow['estado'] = 'Titulado';
+                }
+                unset($studentRow);
+            }
         }
         foreach(self::changedRows($o['ofertas'],$a['ofertas'],'academico.ofertas') as $r){
             self::required($r,['emp','puesto','desc','req','modal','vac','limite','estado'],'Oferta');$company=self::foreign($a['empresas'],$r['emp'],'Empresa');
@@ -118,7 +123,8 @@ final class PortalDomain
             if(!in_array($r['estado'],['Recibida','En revisión','Seleccionado','No seleccionado'],true))throw new PortalError(422,'Estado de postulación no válido.');
         }
         foreach(['programas'=>['estudiantes'=>'prog','uds'=>'prog','modulos'=>'prog','ambientes'=>'prog','sesiones'=>'prog','ofertas'=>'prog'],'estudiantes'=>['certs'=>'est','titulos'=>'est','notas'=>'est','perfilesLab'=>'est','postulaciones'=>'est'],'modulos'=>['certs'=>'mod','uds'=>'mod'],'uds'=>['sesiones'=>'ud'],'docentes'=>['sesiones'=>'doc'],'ambientes'=>['sesiones'=>'amb'],'empresas'=>['ofertas'=>'emp'],'ofertas'=>['postulaciones'=>'of']] as $collection=>$refs){
-            foreach($o[$collection] as $r)if(!PortalPolicy::find($a[$collection],'id',$r['id']))foreach($refs as $related=>$field)if(PortalPolicy::find($a[$related],$field,$r['id']))throw new PortalError(422,'No se puede eliminar '.$collection.' porque tiene registros relacionados.');
+            $remaining=array_fill_keys(array_column($a[$collection],'id'),true);
+            foreach($o[$collection] as $r)if(!isset($remaining[$r['id']]))foreach($refs as $related=>$field)if(PortalPolicy::find($a[$related],$field,$r['id']))throw new PortalError(422,'No se puede eliminar '.$collection.' porque tiene registros relacionados.');
         }
         foreach(['certs'=>'cert','titulos'=>'titulo'] as $collection=>$type)foreach($o[$collection] as $record)if(!PortalPolicy::find($a[$collection],'id',$record['id']))foreach($a['docs'] as $doc)if(($doc['tipo']??'')===$type&&($doc['ref']??null)===($type==='cert'?$record['est']:$record['id'])&&($doc['valido']??true))throw new PortalError(422,'El registro tiene documentos emitidos. Anula el documento antes de retirar su origen.');
         $codes=[];
